@@ -36,7 +36,7 @@
 		"@aws-sdk/fetch-http-handler": "^3.310.0",
 		"@aws-sdk/protocol-http": "^3.310.0",
 		"@aws-sdk/querystring-builder": "^3.310.0",
-		"@aws-sdk/types": "^3.310.0",
+		"@aws-sdk/types": "^3.535.0",
 		"@smithy/fetch-http-handler": "^2.2.7"
 	}
 }

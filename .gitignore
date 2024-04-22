@@ -15,7 +15,7 @@ main.js
 # Exclude sourcemaps
 *.map
 
-# obsidian
+# obsidian files to ignore
 data.json
 
 # Exclude macOS Finder (System Explorer) View States
