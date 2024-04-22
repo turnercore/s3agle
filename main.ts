@@ -219,21 +219,27 @@ export default class S3aglePlugin extends Plugin {
     // Add command for uploading all linked local files in the current document to S3 and Eagle
     this.addCommand({
       id: "upload-all-files",
-      name: "Upload all files in document to S3/Eagle",
+      name: "Upload ALL files in document to S3/Eagle",
       callback: () => this.uploadAllFiles(),
     })
 
     this.addCommand({
       id: "upload-one-file",
-      name: "Upload a file in the document to S3/Eagle",
+      name: "Upload ONE file in the document to S3/Eagle",
       callback: () => this.uploadOneFile(),
     })
 
     // Add command for downloading all linked S3 files in the current document to local storage
     this.addCommand({
       id: "download-all-files",
-      name: "Download all files from S3 to local",
+      name: "Download ALL files from S3 to local",
       callback: () => this.downloadAllFiles(),
+    })
+
+    this.addCommand({
+      id: "download-one-file",
+      name: "Download ONE file from S3 to local",
+      callback: () => this.downloadOneFile(),
     })
   }
 
