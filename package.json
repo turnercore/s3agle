@@ -1,15 +1,21 @@
 {
-	"name": "s3-image-uploader",
-	"version": "0.2.12",
-	"description": "This is an image uploading plugin for Obsidian (https://obsidian.md)",
+	"name": "s3agle",
+	"version": "0.1.0",
+	"description": "Attachment management for Obsidian.md",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
-	"keywords": [],
-	"author": "jvsteiner@gmail.com",
+	"keywords": [
+		"Eagle",
+		"S3",
+		"File Management",
+		"Attachments",
+		"Obsidian"
+	],
+	"author": "me@turnercore.dev",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/mime-types": "^2.1.1",
