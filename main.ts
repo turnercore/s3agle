@@ -69,7 +69,7 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   localFirst: false,
   useEagle: true,
   useS3: true,
-  bypassCors: true,
+  bypassCors: false,
   forcePathStyle: false,
   useCustomContentUrl: false,
   customContentUrl: "",
@@ -340,18 +340,26 @@ export default class S3aglePlugin extends Plugin {
         //remove trailing slash
         eagleApiUrl = eagleApiUrl.slice(0, -1)
       }
-      // If we are using S3 we can upload via URL
-      if (this.settings.useS3 && url) {
+      // We can upload via URL regardless of the file's location if Eagle is local
+      // If Eagle is not local we will need to upload to S3 first
+      if (url) {
         console.log("Uploading file to Eagle via URL")
         console.log(url)
         try {
+          // Grab current note location
+          const noteLocation = this.app.workspace.getActiveFile()?.path
+          const obsidianURL = noteLocation
+            ? `obsidian://open?path=${encodeURIComponent(noteLocation)}`
+            : ""
           const data = {
             url,
             name: file.name,
             website: url,
             tags: ["Obsidian", "S3"],
             folderId,
-            annotation: "Uploaded from Obsidian",
+            annotation: noteLocation
+              ? `Uploaded from Obsidian note ${noteLocation}, ${obsidianURL}`
+              : "Uploaded from Obsidian.",
           }
           const response = await fetch(eagleApiUrl + "/api/item/addFromURL", {
             method: "POST",
@@ -374,6 +382,7 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
+  //Get the Eagle Folder ID for the given path
   async getEagleFolderId(
     folderPath: string,
     createPathIfNotExist = true,
@@ -417,6 +426,7 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
+  //Find a folder in the Eagle folder tree
   async findFolderInTree(
     createPathIfNotExist: boolean,
     folders: Folder[],
@@ -472,6 +482,7 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
+  //Create a folder in Eagle
   async createFolder(
     folderName: string,
     parentId: string,
@@ -513,10 +524,12 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
+  //Fetch the data from the plugin settings
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
   }
 
+  //Save the plugin settings
   async saveSettings() {
     await this.saveData(this.settings)
   }
