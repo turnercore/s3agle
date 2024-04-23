@@ -180,7 +180,7 @@ export default class S3aglePlugin extends Plugin {
       })
 
       await Promise.all(uploads).then(() => {
-        new Notice("All files processed.")
+        new Notice("S3agle: All files processed.")
       })
     }
   }
@@ -315,7 +315,7 @@ export default class S3aglePlugin extends Plugin {
         if (!localUpload) {
           if (exists) {
             new Notice(
-              `File ${file.name} already exists in S3. Using existing URL.`,
+              `S3agle: File ${file.name} already exists in S3. Using existing URL.`,
             )
           } else {
             await this.s3.send(
@@ -343,7 +343,7 @@ export default class S3aglePlugin extends Plugin {
         this.replaceText(editor, placeholder, imgMarkdownText)
       } catch (error) {
         console.error("Error uploading file:", error)
-        new Notice(`Error uploading file: ${error.message}`)
+        new Notice(`S3agle: Error uploading file: ${error.message}`)
         throw error
       }
     }
@@ -385,18 +385,18 @@ export default class S3aglePlugin extends Plugin {
             body: JSON.stringify(data),
           })
           console.log(response)
-          new Notice("Uploaded file to Eagle.")
+          new Notice("S3agle: Uploaded file to Eagle.")
           if (!response.ok) {
             throw new Error("Failed to upload file to Eagle.")
           }
           return response.json()
         } catch (error) {
-          new Notice(`Failed to upload file to Eagle. ${error.message}`)
+          new Notice(`S3agle: Failed to upload file to Eagle. ${error.message}`)
         }
       }
       // Otherwise we will have to save the file locally to the vault and upload from there
       else {
-        new Notice("Not implemented yet.")
+        new Notice("S3agle: Not implemented yet.")
       }
     }
   }
@@ -591,21 +591,25 @@ export default class S3aglePlugin extends Plugin {
       }
 
       await Promise.all(uploads).then(() => {
-        new Notice("All files processed and uploaded to S3.")
+        new Notice("S3agle: All files processed and uploaded to S3.")
       })
     } catch (error) {
       console.error("Error uploading all files:", error)
-      new Notice("Failed to upload files. Check the console for details.")
+      new Notice(
+        "S3agle: Failed to upload files. Check the console for details.",
+      )
     }
   }
 
   //Pick a file from the list and upload it to S3/Eagle
   async uploadOneFile() {
     try {
-      new Notice("Not implemented yet.")
+      new Notice("S3agle: Not implemented yet.")
     } catch (error) {
       console.error("Error uploading one file:", error)
-      new Notice("Failed to upload file. Check the console for details.")
+      new Notice(
+        "S3agle: Failed to upload file. Check the console for details.",
+      )
     }
   }
 
@@ -638,7 +642,7 @@ export default class S3aglePlugin extends Plugin {
         urlToLocal.set(url, localPath)
       } catch (error) {
         console.error("Error downloading from URL:", url, error)
-        new Notice("Failed to download file: " + url)
+        new Notice("S3agle: Failed to download file: " + url)
       }
     }
 
@@ -650,16 +654,18 @@ export default class S3aglePlugin extends Plugin {
 
     // Save the updated note content
     await this.app.vault.modify(noteFile, updatedContent)
-    new Notice("All links have been updated to local paths.")
+    new Notice("S3agle: All links have been updated to local paths.")
   }
 
   //Download one file from S3 to local/Eagle
   async downloadOneFile() {
     try {
-      new Notice("Not implemented yet.")
+      new Notice("S3agle: Not implemented yet.")
     } catch (error) {
       console.error("Error uploading one file:", error)
-      new Notice("Failed to download file. Check the console for details.")
+      new Notice(
+        "S3agle: Failed to download file. Check the console for details.",
+      )
     }
   }
 
@@ -681,9 +687,9 @@ export default class S3aglePlugin extends Plugin {
     // Save the file in the vault
     try {
       await this.app.vault.createBinary(path, new Uint8Array(data))
-      new Notice(`File saved successfully in vault at: ${path}`)
+      new Notice(`S3agle: File saved successfully in vault at: ${path}`)
     } catch (error) {
-      new Notice("Failed to save file in vault.")
+      new Notice("S3agle: Failed to save file in vault.")
     }
   }
 
