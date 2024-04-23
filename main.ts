@@ -782,6 +782,8 @@ export default class S3aglePlugin extends Plugin {
       return "video"
     } else if (file.type.startsWith("audio")) {
       return "audio"
+    } else if (file.type.startsWith("text")) {
+      return "text"
     } else if (file.type === "application/pdf") {
       return "pdf"
     } else if (
@@ -789,6 +791,13 @@ export default class S3aglePlugin extends Plugin {
       file.type.includes("powerpoint")
     ) {
       return "ppt"
+    } else if (
+      file.type.includes("spreadsheet") ||
+      file.type.includes("excel")
+    ) {
+      return "xls"
+    } else if (file.type.includes("zip")) {
+      return "zip"
     } else {
       throw new Error(`Unsupported file type: ${file.type}`)
     }
@@ -1096,7 +1105,7 @@ const wrapFileDependingOnType = (
 	    width='100%' height='600px' frameborder='0'>
 	  </iframe>`
   } else {
-    throw new Error("Unknown file type")
+    return `[file](${location})`
   }
 }
 
