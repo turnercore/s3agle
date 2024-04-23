@@ -10,6 +10,8 @@ import {
   requestUrl,
   normalizePath,
   TFile,
+  SuggestModal,
+  App,
 } from "obsidian"
 import {
   S3Client,
@@ -92,6 +94,12 @@ type Folder = {
   children: Folder[]
 }
 
+type FileReference = {
+  path: string
+  name: string
+  reference: string // This is the whole string that contains the file as well as the markdown around it
+}
+
 /**
  * Main class for the S3agle Obsidian Plugin, extending the base Plugin class.
  */
@@ -152,7 +160,7 @@ export default class S3aglePlugin extends Plugin {
       ev.preventDefault()
 
       const uploads = files.map(async (file) => {
-        const placeholder = `![Uploading ${file.name}…]()`
+        const placeholder = `![Uploading ${file.name}…]`
         editor.replaceSelection(placeholder)
         try {
           await this.processAndUploadFile(
@@ -252,11 +260,20 @@ export default class S3aglePlugin extends Plugin {
       callback: () => this.uploadAllFiles(),
     })
 
-    this.addCommand({
-      id: "upload-one-file",
-      name: "Upload ONE file in the document to S3/Eagle",
-      callback: () => this.uploadOneFile(),
-    })
+    // In progress
+    // this.addCommand({
+    //   id: "upload-one-file",
+    //   name: "Upload ONE file in the document to S3/Eagle",
+    //   callback: async () => {
+    //     const modal = new FileActionSuggestModal(
+    //       app,
+    //       this.settings.contentUrl,
+    //       "local",
+    //       this.uploadOneFile,
+    //     )
+    //     modal.open()
+    //   },
+    // })
 
     // Add command for downloading all linked S3 files in the current document to local storage
     this.addCommand({
@@ -265,11 +282,28 @@ export default class S3aglePlugin extends Plugin {
       callback: () => this.downloadAllFiles(),
     })
 
-    this.addCommand({
-      id: "download-one-file",
-      name: "Download ONE file from S3 to local",
-      callback: () => this.downloadOneFile(),
-    })
+    //In progress
+    //   this.addCommand({
+    //     id: "download-one-file",
+    //     name: "Download a file from S3 to Local.",
+    //     callback: async () => {
+    //       const modal = new FileActionSuggestModal(
+    //         app,
+    //         this.settings.contentUrl,
+    //         "s3",
+    //         this.downloadOneFile,
+    //       )
+    //       modal.open()
+    //     },
+    //   })
+  }
+
+  suggestFilesToDownload() {
+    //Display a list of the S3 files in the current note and allow the user to select one to download
+  }
+
+  suggestFilesToUpload() {
+    //Display a list of the local files in the current note and allow the user to select one to upload
   }
 
   onunload() {}
@@ -289,7 +323,7 @@ export default class S3aglePlugin extends Plugin {
       .replace("${year}", currentDate.getFullYear().toString())
       .replace("${month}", String(currentDate.getMonth() + 1).padStart(2, "0"))
       .replace("${day}", String(currentDate.getDate()).padStart(2, "0"))
-    const sanitizedFileName = this.sanitizeFileName(file.name)
+    const sanitizedFileName = sanitizeFileName(file.name)
     const key = `${folder}/${sanitizedFileName}`
     let url = ""
 
@@ -337,7 +371,7 @@ export default class S3aglePlugin extends Plugin {
         }
         const imgMarkdownText = wrapFileDependingOnType(
           url,
-          this.detectFileType(file),
+          detectFileType(file),
           "",
         )
         this.replaceText(editor, placeholder, imgMarkdownText)
@@ -350,7 +384,7 @@ export default class S3aglePlugin extends Plugin {
 
     if (this.settings.useEagle) {
       // Get the file's type
-      const fileType = this.detectFileType(file)
+      const fileType = detectFileType(file)
       // Find the folderId from the correct folder in Eagle
       const folderId = await this.getEagleFolderId(`Obsidian/${fileType}`)
       // Get the Eagle URL
@@ -456,12 +490,10 @@ export default class S3aglePlugin extends Plugin {
       return
     }
 
-    let eagleApiUrl = this.settings.eagleApiUrl
-    if (eagleApiUrl.endsWith("/")) {
-      //remove trailing slash
-      eagleApiUrl = eagleApiUrl.slice(0, -1)
-    }
-
+    const eagleApiUrl = normalizeUrlWithSlash(this.settings.eagleApiUrl).slice(
+      0,
+      -1,
+    ) // Remove trailing slash
     const folderName = pathParts[0]
     const endOfTree = pathParts.length === 1
     // Check for folder in the current list of folders
@@ -555,37 +587,30 @@ export default class S3aglePlugin extends Plugin {
 
   //Upload all Files to S3/Eagle
   async uploadAllFiles() {
+    // Try to find all the files and create a list of files to upload
+    const uploads = []
+    const uploadsLocalFallback = []
+    const localUpload = this.settings.localUpload
+    const editor = this.app.workspace.activeEditor?.editor
+    if (!editor) throw new Error("No active editor found.")
+
     try {
-      const editor = this.app.workspace.activeEditor?.editor
-      if (!editor) return
+      // Get the note content
+      const noteContent = await getNoteContent(this.app)
+      const fileReferences = await extractLocalFileLinks(noteContent, this.app)
 
-      const noteFile = this.app.workspace.getActiveFile()
-      if (!noteFile || !noteFile.name) return
+      if (!fileReferences) throw new Error("No file references found.")
 
-      const noteContent = await this.app.vault.read(noteFile)
-      // This regex should capture markdown links and Obsidian embeds
-      const localFileRegex = /(!?\[\[)(.*?)(\]\])|(!?\[.*?\])\((.*?)(\))/g
-      let match
-      const uploads = []
-      const uploadsLocalFallback = []
-      const localUpload = this.settings.localUpload
-
-      while ((match = localFileRegex.exec(noteContent)) !== null) {
-        // Determine if the link is a standard markdown or Obsidian embed and extract the path
-        const filePath = match[2] || match[5]
-        if (!filePath || !this.isFileEligible(filePath)) continue // Skip if not an eligible file
+      for (const fileReference of fileReferences) {
+        const filePath = fileReference.path
+        const placeholder = fileReference.reference
 
         const file = this.app.vault.getAbstractFileByPath(filePath)
         if (file instanceof TFile) {
           const blob = await this.app.vault.readBinary(file)
           const fileToUpload = new File([blob], file.name, {
-            type: this.getObsidianMimeType(file.extension),
+            type: getObsidianMimeType(file.extension),
           })
-
-          // Use the entire matched string as the placeholder
-          const placeholder = match[0]
-
-          // Upload the file and replace the placeholder with the URL in the document
           uploads.push(
             this.processAndUploadFile(
               fileToUpload,
@@ -606,35 +631,34 @@ export default class S3aglePlugin extends Plugin {
           }
         }
       }
+    } catch (error) {
+      console.error("Error finding local files:", error)
+      new Notice(`S3agle: ${error.message}`)
+      return
+    }
 
-      // Try to upload all the files
-      try {
-        await Promise.all(uploads).then(() => {
-          new Notice("S3agle: All files processed and uploaded to S3.")
-        })
-      } catch (error) {
-        console.error("Error uploading all files:", error)
-        // Try to upload all the files to local storage instead if S3 is on and fails.
-        if (!localUpload) {
-          try {
-            await Promise.all(uploadsLocalFallback).then(() => {
-              new Notice(
-                "S3agle: Files failed to upload to S3.\n All files processed and uploaded to local storage.",
-              )
-            })
-          } catch (error) {
-            console.error("Error uploading all files:", error)
-            new Notice(
-              "S3agle: Failed to upload files. Check the console for details.",
-            )
-          }
-        }
-      }
+    // Try to upload all the files at once
+    try {
+      await Promise.all(uploads).then(() => {
+        new Notice("S3agle: All files processed and uploaded to S3.")
+      })
     } catch (error) {
       console.error("Error uploading all files:", error)
-      new Notice(
-        "S3agle: Failed to upload files. Check the console for details.",
-      )
+      // Try to upload all the files to local storage instead if S3 is on and fails.
+      if (!localUpload) {
+        try {
+          await Promise.all(uploadsLocalFallback).then(() => {
+            new Notice(
+              "S3agle: Files failed to upload to S3.\n All files processed and uploaded to local storage.",
+            )
+          })
+        } catch (error) {
+          console.error("Error uploading all files:", error)
+          new Notice(
+            "S3agle: Failed to upload files. Check the console for details.",
+          )
+        }
+      }
     }
   }
 
@@ -671,8 +695,8 @@ export default class S3aglePlugin extends Plugin {
     // Download each file and map the URL to a local path
     for (const url of uniqueUrls) {
       try {
-        if (!this.isUrlS3(url)) continue
-        const fileName = this.extractFileNameFromUrl(url)
+        if (!isS3Url(url, this.settings.contentUrl)) continue
+        const fileName = extractFileNameFromUrl(url)
         const localPath = `${this.settings.localUploadFolder}/${fileName}`
         const fileData = await this.downloadFileFromS3(url) // Adjust this method to actually download files via HTTP
         await this.saveFileToVault(fileData, localPath)
@@ -695,9 +719,25 @@ export default class S3aglePlugin extends Plugin {
   }
 
   //Download one file from S3 to local/Eagle
-  async downloadOneFile() {
+  async downloadOneFile(file: FileReference) {
     try {
-      new Notice("S3agle: Not implemented yet.")
+      if (!isS3Url(file.path, this.settings.contentUrl)) {
+        new Notice("S3agle: Not an S3 URL.")
+        return
+      }
+      const fileName = extractFileNameFromUrl(file.path)
+      const localPath = `${this.settings.localUploadFolder}/${fileName}`
+      // See if a file exists in the vault at that path
+      if (await this.app.vault.adapter.exists(localPath)) {
+        new Notice(`S3agle: File already exists at ${localPath}`)
+        return
+      }
+      const fileData = await this.downloadFileFromS3(file.path) // Adjust this method to actually download files via HTTP
+      await this.saveFileToVault(fileData, localPath)
+      if (this.settings.useEagle) {
+        // TODO: See if the file is in Eagle and if not upload it to eagle
+      }
+      new Notice(`S3agle: File downloaded to ${localPath}`)
     } catch (error) {
       console.error("Error uploading one file:", error)
       new Notice(
@@ -706,7 +746,7 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
-  //Save the file locally in the vault
+  // Save the file locally in the vault
   async saveFileToVault(
     data: ArrayBuffer | Uint8Array,
     path: string,
@@ -730,117 +770,16 @@ export default class S3aglePlugin extends Plugin {
     }
   }
 
+  // Download a file from S3, todo: replace with aws download method
   async downloadFileFromS3(url: string) {
     //This downloads the file from the S3 link, but this should maybe be replaced with S3 API calls
     const response = await fetch(url)
     if (!response.ok) throw new Error("Network response was not ok.")
     return new Uint8Array(await response.arrayBuffer()) // Assuming binary data
   }
-
-  // Helper functions for processing files
-  isFileEligible(filePath: string) {
-    const lowerPath = filePath.toLowerCase()
-    return /\.(jpg|jpeg|png|gif|pdf|mp4|webm)$/.test(lowerPath)
-  }
-
-  getObsidianMimeType(extension: string): string {
-    switch (extension) {
-      case "jpg":
-      case "jpeg":
-        return "image/jpeg"
-      case "png":
-        return "image/png"
-      case "gif":
-        return "image/gif"
-      case "webp":
-        return "image/webp"
-      case "svg":
-        return "image/svg+xml"
-      case "mp4":
-        return "video/mp4"
-      case "webm":
-        return "video/webm"
-      case "ogg":
-        return "video/ogg"
-      case "mp3":
-        return "audio/mp3"
-      case "wav":
-        return "audio/wav"
-      case "flac":
-        return "audio/flac"
-      case "pdf":
-        return "application/pdf"
-      default:
-        return "application/octet-stream"
-    }
-  }
-
-  detectFileType(file: File): string {
-    if (file.type.startsWith("image")) {
-      return "image"
-    } else if (file.type.startsWith("video")) {
-      return "video"
-    } else if (file.type.startsWith("audio")) {
-      return "audio"
-    } else if (file.type.startsWith("text")) {
-      return "text"
-    } else if (file.type === "application/pdf") {
-      return "pdf"
-    } else if (
-      file.type.includes("presentation") ||
-      file.type.includes("powerpoint")
-    ) {
-      return "ppt"
-    } else if (
-      file.type.includes("spreadsheet") ||
-      file.type.includes("excel")
-    ) {
-      return "xls"
-    } else if (file.type.includes("zip")) {
-      return "zip"
-    } else {
-      throw new Error(`Unsupported file type: ${file.type}`)
-    }
-  }
-  sanitizeFileName(filename: string): string {
-    // Replace spaces with underscores and remove any problematic characters
-    return filename
-      .replace(/\s+/g, "_") // Replace spaces with underscores
-      .replace(/[^\w.-]/g, "") // Remove all non-word characters except dots and dashes
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Normalize diacritics
-  }
-  escapeRegExp(text: string) {
-    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
-  }
-  isUrlS3(url: string): boolean {
-    // Ensure that the contentUrl ends with a slash for consistent comparison
-    const normalizedContentUrl = this.settings.contentUrl.endsWith("/")
-      ? this.settings.contentUrl
-      : this.settings.contentUrl + "/"
-
-    // Check if the provided URL starts with the normalized content URL
-    return url.startsWith(normalizedContentUrl)
-  }
-  extractFileNameFromUrl(url: string): string {
-    // Remove any query parameters
-    let filename = url.split("?")[0] // Discards query parameters if any
-    filename = filename.substring(filename.lastIndexOf("/") + 1) // Gets the last segment after the last '/'
-
-    // Decode URI components
-    filename = decodeURIComponent(filename)
-
-    // Replace any characters that are not allowed in filenames
-    // eslint-disable-next-line no-control-regex
-    const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g // Regex to find invalid characters
-    const replacementChar = "_" // Replacement character for invalid characters in filenames
-
-    filename = filename.replace(invalidChars, replacementChar)
-
-    return filename
-  }
 }
 
+// Settings tab for the plugin
 class S3agleSettingTab extends PluginSettingTab {
   plugin: S3aglePlugin
 
@@ -1055,29 +994,6 @@ class S3agleSettingTab extends PluginSettingTab {
   }
 }
 
-// Let's you hide fields from cleartext, but not implimented
-// const wrapTextWithPasswordHide = (text: TextComponent) => {
-//   const hider = text.inputEl.insertAdjacentElement("beforebegin", createSpan())
-//   if (!hider) {
-//     return
-//   }
-//   setIcon(hider as HTMLElement, "eye-off")
-
-//   hider.addEventListener("click", () => {
-//     const isText = text.inputEl.getAttribute("type") === "text"
-//     if (isText) {
-//       setIcon(hider as HTMLElement, "eye-off")
-//       text.inputEl.setAttribute("type", "password")
-//     } else {
-//       setIcon(hider as HTMLElement, "eye")
-//       text.inputEl.setAttribute("type", "text")
-//     }
-//     text.inputEl.focus()
-//   })
-//   text.inputEl.setAttribute("type", "password")
-//   return text
-// }
-
 // Creates the correct kind of markdown link based on the filetype so that the file will preview correctly in Obsidian
 const wrapFileDependingOnType = (
   location: string,
@@ -1219,4 +1135,295 @@ class ObsHttpHandler extends FetchHttpHandler {
 
 const bufferToArrayBuffer = (b: Buffer | Uint8Array | ArrayBufferView) => {
   return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
+}
+
+class FileActionSuggestModal extends SuggestModal<FileReference> {
+  private fileReferences: FileReference[] = []
+  private actionCallback: (fileRef: FileReference) => void
+  contentUrl: string
+  localOrS3: "local" | "s3"
+
+  constructor(
+    app: App,
+    contentUrl: string,
+    localOrS3: "local" | "s3",
+    actionCallback: (fileRef: FileReference) => void,
+  ) {
+    super(app)
+    this.contentUrl = contentUrl
+    this.localOrS3 = localOrS3
+    this.actionCallback = actionCallback
+    this.setPlaceholder("Type to filter files...")
+  }
+
+  async getFileReferences(): Promise<void> {
+    console.log("getting file references")
+    const noteContent = await getNoteContent(this.app)
+
+    switch (this.localOrS3) {
+      case "local": {
+        // Get all the files locally in the current note
+        this.fileReferences = await extractLocalFileLinks(noteContent, this.app)
+        break
+      }
+      case "s3": {
+        // Get all the S3 files in the current note
+        const s3FileLinks = await extractS3FileLinks(
+          noteContent,
+          this.contentUrl,
+        )
+        this.fileReferences = s3FileLinks
+        break
+      }
+      default:
+        return
+    }
+  }
+
+  async onOpen(): Promise<void> {
+    await this.getFileReferences()
+    for (const fileRef of this.fileReferences) {
+      console.log(fileRef)
+      this.renderSuggestion(fileRef, this.inputEl)
+    }
+  }
+
+  // onClose clean up suggestions
+  onClose(): void {
+    this.fileReferences = []
+  }
+
+  getItemText(fileRef: FileReference): string {
+    return fileRef.name // Display the file name in the suggester
+  }
+
+  onChooseItem(item: FileReference, _evt: MouseEvent | KeyboardEvent): void {
+    this.actionCallback(item) // Execute the callback with the selected file reference
+  }
+
+  getSuggestions(query: string): FileReference[] {
+    const lowerQuery = query.toLowerCase()
+    return this.fileReferences.filter((fileRef) =>
+      fileRef.name.toLowerCase().includes(lowerQuery),
+    )
+  }
+
+  onChooseSuggestion(item: FileReference, evt: MouseEvent | KeyboardEvent) {
+    this.actionCallback(item)
+  }
+
+  renderSuggestion(fileRef: FileReference, el: HTMLElement): void {
+    el.createDiv({ text: fileRef.name })
+  }
+}
+
+const isFileEligible = (filePath: string) => {
+  const lowerPath = filePath.toLowerCase()
+  return /\.(jpg|jpeg|png|gif|pdf|mp4|webm)$/.test(lowerPath)
+}
+
+const getObsidianMimeType = (extension: string): string => {
+  switch (extension) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg"
+    case "png":
+      return "image/png"
+    case "gif":
+      return "image/gif"
+    case "webp":
+      return "image/webp"
+    case "svg":
+      return "image/svg+xml"
+    case "mp4":
+      return "video/mp4"
+    case "webm":
+      return "video/webm"
+    case "ogg":
+      return "video/ogg"
+    case "mp3":
+      return "audio/mp3"
+    case "wav":
+      return "audio/wav"
+    case "flac":
+      return "audio/flac"
+    case "pdf":
+      return "application/pdf"
+    default:
+      return "application/octet-stream"
+  }
+}
+
+const detectFileType = (file: File): string => {
+  if (file.type.startsWith("image")) {
+    return "image"
+  } else if (file.type.startsWith("video")) {
+    return "video"
+  } else if (file.type.startsWith("audio")) {
+    return "audio"
+  } else if (file.type.startsWith("text")) {
+    return "text"
+  } else if (file.type === "application/pdf") {
+    return "pdf"
+  } else if (
+    file.type.includes("presentation") ||
+    file.type.includes("powerpoint")
+  ) {
+    return "ppt"
+  } else if (file.type.includes("spreadsheet") || file.type.includes("excel")) {
+    return "xls"
+  } else if (file.type.includes("zip")) {
+    return "zip"
+  } else {
+    throw new Error(`Unsupported file type: ${file.type}`)
+  }
+}
+
+const sanitizeFileName = (filename: string): string => {
+  // Replace spaces with underscores and remove any problematic characters
+  return filename
+    .replace(/\s+/g, "_") // Replace spaces with underscores
+    .replace(/[^\w.-]/g, "") // Remove all non-word characters except dots and dashes
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Normalize diacritics
+}
+
+const escapeRegExp = (text: string) => {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
+}
+
+//Makes sure the url part ends with a /
+const normalizeUrlWithSlash = (url: string): string => {
+  // Ensure that the contentUrl ends with a slash for consistent comparison
+  return url.endsWith("/") ? url : url + "/"
+}
+
+const isS3Url = (url: string, contentUrl: string): boolean => {
+  // Normalize the URLs for comparison
+  const normalizedUrl = normalizeUrlWithSlash(url)
+  const normalizedContentUrl = normalizeUrlWithSlash(contentUrl)
+
+  // Check if the URL starts with the content URL
+  return normalizedUrl.startsWith(normalizedContentUrl)
+}
+
+const extractFileNameFromUrl = (url: string): string => {
+  // Remove any query parameters
+  let filename = url.split("?")[0] // Discards query parameters if any
+  filename = filename.substring(filename.lastIndexOf("/") + 1) // Gets the last segment after the last '/'
+
+  // Decode URI components
+  filename = decodeURIComponent(filename)
+
+  // Replace any characters that are not allowed in filenames
+  // eslint-disable-next-line no-control-regex
+  const invalidChars = /[<>:"/\\|?*\x00-\x1F\)]/g // Regex to find invalid characters, including ')'
+  const replacementChar = "_" // Replacement character for invalid characters in filenames
+
+  filename = filename.replace(invalidChars, replacementChar)
+  // Remove any leading or trailing dots, or symbols from the filename like _	or .
+  filename = filename.replace(/^\.+|\.+$|^[._]+|[._]+$/g, "")
+  // Ensure that the filename is not empty after sanitization
+  if (filename === "") {
+    filename = "untitled"
+  }
+  console.log(filename)
+  return filename
+}
+
+const extractS3FileLinks = async (
+  text: string,
+  contentUrl: string,
+): Promise<FileReference[]> => {
+  //regex to get http & https urls from the file
+  const regex = /(https?:\/\/[^\s]+)/g
+  const matches = text.matchAll(regex)
+  const links: FileReference[] = []
+
+  for (const match of matches) {
+    const url = match[0]
+    if (!isS3Url(url, contentUrl)) continue
+    const name = extractFileNameFromUrl(url)
+
+    let referenceStart, referenceEnd
+
+    // Check for HTML tag
+    referenceStart = text.lastIndexOf("<", match.index)
+    referenceEnd = text.indexOf(">", match.index)
+    if (referenceStart !== -1 && referenceEnd !== -1) {
+      links.push({
+        path: url,
+        name,
+        reference: text.slice(referenceStart, referenceEnd + 1),
+      })
+      continue
+    }
+
+    // Check for Markdown link
+    referenceEnd = text.lastIndexOf(")", match.index)
+    if (referenceEnd !== -1) {
+      referenceStart = text.lastIndexOf("[", referenceEnd)
+      if (referenceStart !== -1) {
+        links.push({
+          path: url,
+          name,
+          reference: text.slice(referenceStart, referenceEnd + 1),
+        })
+        continue
+      }
+    }
+
+    // If no HTML or Markdown syntax found, use the URL itself
+    links.push({ path: url, name, reference: url })
+  }
+
+  return links
+}
+
+const extractLocalFileLinks = async (
+  text: string,
+  app: App,
+): Promise<FileReference[]> => {
+  const listOfFiles: FileReference[] = []
+  try {
+    // Updated regex to handle both Obsidian embeds and markdown image links with local paths
+    const localFileRegex = /!\[\[(.*?)\]\]|!\[.*?\]\((file:\/\/)?(.*?)\)/g
+    let match
+
+    while ((match = localFileRegex.exec(text)) !== null) {
+      // Extract the file path from either markdown link or embed
+      const filePath = decodeURIComponent(match[1] || match[2])
+
+      if (!filePath) continue // Skip if filePath is undefined or empty
+
+      // Normalize file paths that start with "file://"
+      const normalizedPath = filePath.replace(/^file:\/\/\//, "")
+      // Check if the file exists in the vault
+      const file = app.vault.getAbstractFileByPath(normalizedPath)
+
+      // If it exists and is a file, push the file location and name to the list
+      if (file instanceof TFile) {
+        listOfFiles.push({
+          path: file.path,
+          name: file.basename, // Use basename for just the file name without path
+          reference: match[0], // Full match to replace or reference later
+        })
+      }
+    }
+
+    return listOfFiles
+  } catch (error) {
+    console.error("Error extracting file links:", error)
+    return listOfFiles // Return empty or partial list on failure
+  }
+}
+
+const getNoteContent = async (app: App): Promise<string> => {
+  const editor = app.workspace.activeEditor?.editor
+  if (!editor) throw new Error("No active editor found.")
+
+  const noteFile = app.workspace.getActiveFile()
+  if (!noteFile || !noteFile.name) throw new Error("No active note found.")
+
+  return await app.vault.read(noteFile)
 }
