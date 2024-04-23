@@ -154,7 +154,29 @@ export default class S3aglePlugin extends Plugin {
       const uploads = files.map(async (file) => {
         const placeholder = `![Uploading ${file.name}…]()`
         editor.replaceSelection(placeholder)
-        await this.processAndUploadFile(file, localUpload, editor, placeholder)
+        try {
+          await this.processAndUploadFile(
+            file,
+            localUpload,
+            editor,
+            placeholder,
+          )
+        } catch (error) {
+          // If there is an error and localUpload is false, try it again with localUpload set to true
+          if (!localUpload) {
+            try {
+              await this.processAndUploadFile(file, true, editor, placeholder)
+              new Notice(
+                `S3agle: Error uploading file to S3.\n Reverted to local storage instead.`,
+              )
+            } catch (error) {
+              console.error("Error uploading file:", error)
+              new Notice(
+                `S3agle: Error uploading file.\n Local Storage failed as well... Check console for details.`,
+              )
+            }
+          }
+        }
       })
 
       await Promise.all(uploads).then(() => {
@@ -321,11 +343,8 @@ export default class S3aglePlugin extends Plugin {
         this.replaceText(editor, placeholder, imgMarkdownText)
       } catch (error) {
         console.error("Error uploading file:", error)
-        this.replaceText(
-          editor,
-          placeholder,
-          `Error uploading file: ${error.message}\n`,
-        )
+        new Notice(`Error uploading file: ${error.message}`)
+        throw error
       }
     }
 
