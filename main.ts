@@ -567,6 +567,8 @@ export default class S3aglePlugin extends Plugin {
       const localFileRegex = /(!?\[\[)(.*?)(\]\])|(!?\[.*?\])\((.*?)(\))/g
       let match
       const uploads = []
+      const uploadsLocalFallback = []
+      const localUpload = this.settings.localUpload
 
       while ((match = localFileRegex.exec(noteContent)) !== null) {
         // Determine if the link is a standard markdown or Obsidian embed and extract the path
@@ -585,14 +587,49 @@ export default class S3aglePlugin extends Plugin {
 
           // Upload the file and replace the placeholder with the URL in the document
           uploads.push(
-            this.processAndUploadFile(fileToUpload, false, editor, placeholder),
+            this.processAndUploadFile(
+              fileToUpload,
+              localUpload,
+              editor,
+              placeholder,
+            ),
           )
+          if (!localUpload) {
+            uploadsLocalFallback.push(
+              this.processAndUploadFile(
+                fileToUpload,
+                true,
+                editor,
+                placeholder,
+              ),
+            )
+          }
         }
       }
 
-      await Promise.all(uploads).then(() => {
-        new Notice("S3agle: All files processed and uploaded to S3.")
-      })
+      // Try to upload all the files
+      try {
+        await Promise.all(uploads).then(() => {
+          new Notice("S3agle: All files processed and uploaded to S3.")
+        })
+      } catch (error) {
+        console.error("Error uploading all files:", error)
+        // Try to upload all the files to local storage instead if S3 is on and fails.
+        if (!localUpload) {
+          try {
+            await Promise.all(uploadsLocalFallback).then(() => {
+              new Notice(
+                "S3agle: Files failed to upload to S3.\n All files processed and uploaded to local storage.",
+              )
+            })
+          } catch (error) {
+            console.error("Error uploading all files:", error)
+            new Notice(
+              "S3agle: Failed to upload files. Check the console for details.",
+            )
+          }
+        }
+      }
     } catch (error) {
       console.error("Error uploading all files:", error)
       new Notice(
