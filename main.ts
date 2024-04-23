@@ -536,48 +536,58 @@ export default class S3aglePlugin extends Plugin {
 
   //Upload all Files to S3/Eagle
   async uploadAllFiles() {
-    const editor = this.app.workspace.activeEditor?.editor
-    if (!editor) return
+    try {
+      const editor = this.app.workspace.activeEditor?.editor
+      if (!editor) return
 
-    const noteFile = this.app.workspace.getActiveFile()
-    if (!noteFile || !noteFile.name) return
+      const noteFile = this.app.workspace.getActiveFile()
+      if (!noteFile || !noteFile.name) return
 
-    const noteContent = await this.app.vault.read(noteFile)
-    // This regex should capture markdown links and Obsidian embeds
-    const localFileRegex = /(!?\[\[)(.*?)(\]\])|(!?\[.*?\])\((.*?)(\))/g
-    let match
-    const uploads = []
+      const noteContent = await this.app.vault.read(noteFile)
+      // This regex should capture markdown links and Obsidian embeds
+      const localFileRegex = /(!?\[\[)(.*?)(\]\])|(!?\[.*?\])\((.*?)(\))/g
+      let match
+      const uploads = []
 
-    while ((match = localFileRegex.exec(noteContent)) !== null) {
-      // Determine if the link is a standard markdown or Obsidian embed and extract the path
-      const filePath = match[2] || match[5]
-      if (!filePath || !this.isFileEligible(filePath)) continue // Skip if not an eligible file
+      while ((match = localFileRegex.exec(noteContent)) !== null) {
+        // Determine if the link is a standard markdown or Obsidian embed and extract the path
+        const filePath = match[2] || match[5]
+        if (!filePath || !this.isFileEligible(filePath)) continue // Skip if not an eligible file
 
-      const file = await this.app.vault.getAbstractFileByPath(filePath)
-      if (file instanceof TFile) {
-        const blob = await this.app.vault.readBinary(file)
-        const fileToUpload = new File([blob], file.name, {
-          type: this.getObsidianMimeType(file.extension),
-        })
+        const file = await this.app.vault.getAbstractFileByPath(filePath)
+        if (file instanceof TFile) {
+          const blob = await this.app.vault.readBinary(file)
+          const fileToUpload = new File([blob], file.name, {
+            type: this.getObsidianMimeType(file.extension),
+          })
 
-        // Use the entire matched string as the placeholder
-        const placeholder = match[0]
+          // Use the entire matched string as the placeholder
+          const placeholder = match[0]
 
-        // Upload the file and replace the placeholder with the URL in the document
-        uploads.push(
-          this.processAndUploadFile(fileToUpload, false, editor, placeholder),
-        )
+          // Upload the file and replace the placeholder with the URL in the document
+          uploads.push(
+            this.processAndUploadFile(fileToUpload, false, editor, placeholder),
+          )
+        }
       }
-    }
 
-    await Promise.all(uploads).then(() => {
-      new Notice("All files processed and uploaded to S3.")
-    })
+      await Promise.all(uploads).then(() => {
+        new Notice("All files processed and uploaded to S3.")
+      })
+    } catch (error) {
+      console.error("Error uploading all files:", error)
+      new Notice("Failed to upload files. Check the console for details.")
+    }
   }
 
   //Pick a file from the list and upload it to S3/Eagle
   async uploadOneFile() {
-    new Notice("Not implemented yet.")
+    try {
+      new Notice("Not implemented yet.")
+    } catch (error) {
+      console.error("Error uploading one file:", error)
+      new Notice("Failed to upload file. Check the console for details.")
+    }
   }
 
   //Download all Files from S3 to local/Eagle
@@ -626,7 +636,12 @@ export default class S3aglePlugin extends Plugin {
 
   //Download one file from S3 to local/Eagle
   async downloadOneFile() {
-    new Notice("Not implemented yet.")
+    try {
+      new Notice("Not implemented yet.")
+    } catch (error) {
+      console.error("Error uploading one file:", error)
+      new Notice("Failed to download file. Check the console for details.")
+    }
   }
 
   //Save the file locally in the vault
@@ -659,11 +674,13 @@ export default class S3aglePlugin extends Plugin {
     if (!response.ok) throw new Error("Network response was not ok.")
     return new Uint8Array(await response.arrayBuffer()) // Assuming binary data
   }
+
   // Helper functions for processing files
   isFileEligible(filePath: string) {
     const lowerPath = filePath.toLowerCase()
     return /\.(jpg|jpeg|png|gif|pdf|mp4|webm)$/.test(lowerPath)
   }
+
   getObsidianMimeType(extension: string): string {
     switch (extension) {
       case "jpg":
@@ -695,6 +712,7 @@ export default class S3aglePlugin extends Plugin {
         return "application/octet-stream"
     }
   }
+
   detectFileType(file: File): string {
     if (file.type.startsWith("image")) {
       return "image"
