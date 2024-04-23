@@ -69,7 +69,7 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   localFirst: false,
   useEagle: true,
   useS3: true,
-  bypassCors: false,
+  bypassCors: true,
   forcePathStyle: false,
   useCustomContentUrl: false,
   customContentUrl: "",
@@ -83,6 +83,13 @@ const DEFAULT_SETTINGS: S3agleSettings = {
 
 interface pasteFunction {
   (this: HTMLElement, event: ClipboardEvent | DragEvent): void
+}
+
+type Folder = {
+  id: string
+  name: string
+  parent: string
+  children: Folder[]
 }
 
 /**
@@ -262,64 +269,247 @@ export default class S3aglePlugin extends Plugin {
       .replace("${day}", String(currentDate.getDate()).padStart(2, "0"))
     const sanitizedFileName = this.sanitizeFileName(file.name)
     const key = `${folder}/${sanitizedFileName}`
+    let url = ""
 
-    // Check to see if the file exists
-    let exists = false
+    if (this.settings.useS3) {
+      // Check to see if the file exists on S3
+      let exists = false
+      try {
+        console.log(`checking if file exists: ${key}`)
+        const response = await this.s3.send(
+          new ListObjectsCommand({
+            Bucket: this.settings.bucket,
+            Prefix: key,
+          }),
+        )
+        exists =
+          response.Contents?.some((object) => object.Key === key) || false
+      } catch (error) {
+        console.log("Error checking if file exists:", error)
+      }
 
-    try {
-      console.log(`checking if file exists: ${key}`)
-      const response = await this.s3.send(
-        new ListObjectsCommand({
-          Bucket: this.settings.bucket,
-          Prefix: key,
-        }),
-      )
-      exists = response.Contents?.some((object) => object.Key === key) || false
-    } catch (error) {
-      console.log("Error checking if file exists:", error)
+      try {
+        const buf = await file.arrayBuffer()
+        if (!localUpload) {
+          if (exists) {
+            new Notice(
+              `File ${file.name} already exists in S3. Using existing URL.`,
+            )
+          } else {
+            await this.s3.send(
+              new PutObjectCommand({
+                Bucket: this.settings.bucket,
+                Key: key,
+                Body: new Uint8Array(buf),
+                ContentType: file.type,
+              }),
+            )
+          }
+          url = this.settings.contentUrl + key
+        } else {
+          await this.app.vault.adapter.writeBinary(key, new Uint8Array(buf))
+          url =
+            this.app.vault.adapter instanceof FileSystemAdapter
+              ? this.app.vault.adapter.getFilePath(key)
+              : key
+        }
+        const imgMarkdownText = wrapFileDependingOnType(
+          url,
+          this.detectFileType(file),
+          "",
+        )
+        this.replaceText(editor, placeholder, imgMarkdownText)
+      } catch (error) {
+        console.error("Error uploading file:", error)
+        this.replaceText(
+          editor,
+          placeholder,
+          `Error uploading file: ${error.message}\n`,
+        )
+      }
     }
 
-    console.log(exists)
+    if (this.settings.useEagle) {
+      // Get the file's type
+      const fileType = this.detectFileType(file)
+      // Find the folderId from the correct folder in Eagle
+      const folderId = await this.getEagleFolderId(`Obsidian/${fileType}`)
+      // Get the Eagle URL
+      let eagleApiUrl = this.settings.eagleApiUrl
+      if (eagleApiUrl.endsWith("/")) {
+        //remove trailing slash
+        eagleApiUrl = eagleApiUrl.slice(0, -1)
+      }
+      // If we are using S3 we can upload via URL
+      if (this.settings.useS3 && url) {
+        console.log("Uploading file to Eagle via URL")
+        console.log(url)
+        try {
+          const data = {
+            url,
+            name: file.name,
+            website: url,
+            tags: ["Obsidian", "S3"],
+            folderId,
+            annotation: "Uploaded from Obsidian",
+          }
+          const response = await fetch(eagleApiUrl + "/api/item/addFromURL", {
+            method: "POST",
+            body: JSON.stringify(data),
+          })
+          console.log(response)
+          new Notice("Uploaded file to Eagle.")
+          if (!response.ok) {
+            throw new Error("Failed to upload file to Eagle.")
+          }
+          return response.json()
+        } catch (error) {
+          new Notice(`Failed to upload file to Eagle. ${error.message}`)
+        }
+      }
+      // Otherwise we will have to save the file locally to the vault and upload from there
+      else {
+        new Notice("Not implemented yet.")
+      }
+    }
+  }
 
+  async getEagleFolderId(
+    folderPath: string,
+    createPathIfNotExist = true,
+  ): Promise<string | null> {
+    console.log("Getting Eagle Folder ID for path: ", folderPath)
     try {
-      const buf = await file.arrayBuffer()
-      let url
-      if (!localUpload) {
-        if (exists) {
-          new Notice(
-            `File ${file.name} already exists in S3. Using existing URL.`,
-          )
+      const requestOptions: RequestInit = {
+        method: "GET",
+        redirect: "follow",
+      }
+
+      let eagleApiUrl = this.settings.eagleApiUrl
+      if (eagleApiUrl.endsWith("/")) {
+        //remove trailing slash
+        eagleApiUrl = eagleApiUrl.slice(0, -1)
+      }
+
+      const response = await fetch(
+        eagleApiUrl + "/api/folder/list",
+        requestOptions,
+      )
+
+      const result = await response.json()
+
+      if (result.status === "success") {
+        const pathParts = folderPath.split("/")
+        const folder = await this.findFolderInTree(
+          createPathIfNotExist,
+          result.data,
+          pathParts,
+        )
+
+        return folder ? folder.id : null
+      } else {
+        console.error("Failed to fetch folder list:", result)
+        return null
+      }
+    } catch (error) {
+      console.error("Failed to fetch folder list:", error)
+      return null
+    }
+  }
+
+  async findFolderInTree(
+    createPathIfNotExist: boolean,
+    folders: Folder[],
+    pathParts: string[],
+    parentId = "",
+  ): Promise<Folder | undefined> {
+    if (pathParts.length === 0) {
+      return
+    }
+
+    let eagleApiUrl = this.settings.eagleApiUrl
+    if (eagleApiUrl.endsWith("/")) {
+      //remove trailing slash
+      eagleApiUrl = eagleApiUrl.slice(0, -1)
+    }
+
+    const folderName = pathParts[0]
+    const endOfTree = pathParts.length === 1
+    // Check for folder in the current list of folders
+    const folder = folders.find((folder) => folder.name === folderName)
+    if (folder && endOfTree) return folder
+    if (folder && !endOfTree) {
+      // Current folder is found, but we need to go deeper
+      return this.findFolderInTree(
+        createPathIfNotExist,
+        folder.children,
+        pathParts.slice(1),
+        folder.id,
+      )
+    }
+    if (!folder && createPathIfNotExist) {
+      // Folder is not found and we need to create it
+      const folderId = await this.createFolder(folderName, parentId)
+
+      if (folderId) {
+        //Folder was created successfully we can create the next folder in the list if needed
+        if (endOfTree) {
+          return {
+            id: folderId,
+            name: folderName,
+            parent: parentId,
+            children: [],
+          }
         } else {
-          await this.s3.send(
-            new PutObjectCommand({
-              Bucket: this.settings.bucket,
-              Key: key,
-              Body: new Uint8Array(buf),
-              ContentType: file.type,
-            }),
+          return this.findFolderInTree(
+            createPathIfNotExist,
+            folders,
+            pathParts.slice(1),
+            folderId,
           )
         }
-        url = this.settings.contentUrl + key
-      } else {
-        await this.app.vault.adapter.writeBinary(key, new Uint8Array(buf))
-        url =
-          this.app.vault.adapter instanceof FileSystemAdapter
-            ? this.app.vault.adapter.getFilePath(key)
-            : key
+      } else return
+    }
+  }
+
+  async createFolder(
+    folderName: string,
+    parentId: string,
+  ): Promise<string | null> {
+    try {
+      let eagleApiUrl = this.settings.eagleApiUrl
+      if (eagleApiUrl.endsWith("/")) {
+        //remove trailing slash
+        eagleApiUrl = eagleApiUrl.slice(0, -1)
       }
-      const imgMarkdownText = wrapFileDependingOnType(
-        url,
-        this.detectFileType(file),
-        "",
-      )
-      this.replaceText(editor, placeholder, imgMarkdownText)
+
+      const data = {
+        folderName,
+        parent: parentId,
+      }
+
+      const response = await fetch(eagleApiUrl + "/api/folder/create", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create folder in Eagle.")
+      }
+
+      interface expectedResponse {
+        status: string
+        data: Folder
+      }
+
+      const dataObject: expectedResponse = await response.json()
+
+      console.log(`created folder with id ${dataObject.data.id}`)
+
+      return dataObject.data.id || null
     } catch (error) {
-      console.error("Error uploading file:", error)
-      this.replaceText(
-        editor,
-        placeholder,
-        `Error uploading file: ${error.message}\n`,
-      )
+      console.error("Failed to create folder in Eagle:", error)
+      return null
     }
   }
 
