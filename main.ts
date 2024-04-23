@@ -575,7 +575,7 @@ export default class S3aglePlugin extends Plugin {
         const filePath = match[2] || match[5]
         if (!filePath || !this.isFileEligible(filePath)) continue // Skip if not an eligible file
 
-        const file = await this.app.vault.getAbstractFileByPath(filePath)
+        const file = this.app.vault.getAbstractFileByPath(filePath)
         if (file instanceof TFile) {
           const blob = await this.app.vault.readBinary(file)
           const fileToUpload = new File([blob], file.name, {
