@@ -6,9 +6,9 @@ This project uses S3 Storage provider and/or [Eagle](https://eagle.cool/) to man
 
 ## What is Eagle?
 
-[Eagle](https://eagle.cool/) is a file mangement app. It needs to be running in the background for the [Eagle](https://eagle.cool/) functions to work properly. [Eagle](https://eagle.cool/) released basic API access to their program that allows the plugin to upload files to it.
+[Eagle](https://eagle.cool/) is a file mangement app. Eagle app needs to be running in the background for the Eagle functionality to work properly. The Eagle URL is editable within the settings in case you want to try running it remotely. This plugin has not been tested with Eagle running on a remote computer, but in theory it should work Eagle has only released basic API access to the app, and as this API is expanded this plugin could have more options for storing files within it.
 
-> [!NOTE] Note
+> [!NOTE]
 > This plugin is still in development, and there may be some bugs. Please report any issues you find. Always be sure to backup your vault before using a new plugin.
 
 ### Usage
@@ -86,6 +86,20 @@ This command will find all the files uploaded to your S3 url, download them, and
 `S3agle: Upload ALL files to S3/Eagle`
 This command will upload all the files that it can find in the current note to S3 and/or Eagle (depending on your settings). It will also update any of the links to turn them to S3 links. Note this does not delete the files locally.
 
+## How Eagle and S3 Interact with the Plugin
+
+If you are using Eagle and S3 then the plugin will upload files to S3 and use S3 for Obsidian links. This means your files will be accessible even when using your vault on another computer.
+
+It will also upload the files to Eagle, using the S3 link as the "website" field in Eagle so you can find the remote links again. In the future this will be used to be able to insert S3 links into new documents, using Eagle as the browser/searcher/file manager.
+
+The file will not, by default, be stored locally in the vault.
+
+If you are downloading files from S3 to make local, it will use vault storage as well as Eagle.
+
+If Eagle is turned off the plugin will skip any Eagle related steps, and use local vault storage or S3 only.
+
+If S3 is disabled, files won't be uploaded to S3, but will still be uploaded to Eagle.
+
 ## Development
 
 PR's are welcome! Features that I would like to add include:
@@ -93,3 +107,4 @@ PR's are welcome! Features that I would like to add include:
 - [ ] Upload and download individual files from commands
 - [ ] Use Eagle instead of vault storage for local link previews (this may require an update to the Eagle API before it is possible)
 - [ ] File viewer with thumbnails for Eagle files to insert them into the note.
+- [ ] Ability to insert already uploaded files into new documents.
