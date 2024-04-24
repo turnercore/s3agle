@@ -490,10 +490,6 @@ export default class S3aglePlugin extends Plugin {
       return
     }
 
-    const eagleApiUrl = normalizeUrlWithSlash(this.settings.eagleApiUrl).slice(
-      0,
-      -1,
-    ) // Remove trailing slash
     const folderName = pathParts[0]
     const endOfTree = pathParts.length === 1
     // Check for folder in the current list of folders
@@ -1217,11 +1213,6 @@ class FileActionSuggestModal extends SuggestModal<FileReference> {
   }
 }
 
-const isFileEligible = (filePath: string) => {
-  const lowerPath = filePath.toLowerCase()
-  return /\.(jpg|jpeg|png|gif|pdf|mp4|webm)$/.test(lowerPath)
-}
-
 const getObsidianMimeType = (extension: string): string => {
   switch (extension) {
     case "jpg":
@@ -1288,10 +1279,6 @@ const sanitizeFileName = (filename: string): string => {
     .replace(/[\u0300-\u036f]/g, "") // Normalize diacritics
 }
 
-const escapeRegExp = (text: string) => {
-  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
-}
-
 //Makes sure the url part ends with a /
 const normalizeUrlWithSlash = (url: string): string => {
   // Ensure that the contentUrl ends with a slash for consistent comparison
@@ -1317,7 +1304,7 @@ const extractFileNameFromUrl = (url: string): string => {
 
   // Replace any characters that are not allowed in filenames
   // eslint-disable-next-line no-control-regex
-  const invalidChars = /[<>:"/\\|?*\x00-\x1F\)]/g // Regex to find invalid characters, including ')'
+  const invalidChars = /[<>:"/\\|?*\x00-\x1F)]/g // Regex to find invalid characters, including ')'
   const replacementChar = "_" // Replacement character for invalid characters in filenames
 
   filename = filename.replace(invalidChars, replacementChar)
