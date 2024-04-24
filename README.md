@@ -2,13 +2,14 @@
 
 This is a plugin for [Obsidian](https://obsidian.md). It was based off [S3 Image Uploader](https://github.com/jvsteiner/s3-image-uploader).
 
-This project uses S3 Storage provider and/or Eagle to manage files locally. You can use each independiently.
+This project uses S3 Storage provider and/or [Eagle](https://eagle.cool/) to manage files locally. You can use each independiently.
 
 ## What is Eagle?
 
-[Eagle](https://eagle.cool/) is a nifty file mangement app. It needs to be running in the background for the Eagle functions to work properly. Eagle relesed basic API access to their program that allows the plugin to upload files to it.
+[Eagle](https://eagle.cool/) is a file mangement app. It needs to be running in the background for the [Eagle](https://eagle.cool/) functions to work properly. [Eagle](https://eagle.cool/) released basic API access to their program that allows the plugin to upload files to it.
 
-Note: this plugin is still in development, and there may be some bugs. Please report any issues you find. Always be sure to backup your vault before using a new plugin.
+> [!NOTE] Note
+> This plugin is still in development, and there may be some bugs. Please report any issues you find. Always be sure to backup your vault before using a new plugin.
 
 ### Usage
 
@@ -89,6 +90,6 @@ This command will upload all the files that it can find in the current note to S
 
 PR's are welcome! Features that I would like to add include:
 
-- [ ] Upload and download individual files
+- [ ] Upload and download individual files from commands
 - [ ] Use Eagle instead of vault storage for local link previews (this may require an update to the Eagle API before it is possible)
 - [ ] File viewer with thumbnails for Eagle files to insert them into the note.
