@@ -1,42 +1,42 @@
 {
-	"name": "s3agle",
-	"version": "0.1.0",
-	"description": "Attachment management for Obsidian.md",
-	"main": "main.js",
-	"scripts": {
-		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json"
-	},
-	"keywords": [
-		"Eagle",
-		"S3",
-		"File Management",
-		"Attachments",
-		"Obsidian"
-	],
-	"author": "me@turnercore.dev",
-	"license": "MIT",
-	"devDependencies": {
-		"@types/mime-types": "^2.1.1",
-		"@types/node": "^18.11.18",
-		"@typescript-eslint/eslint-plugin": "5.29.0",
-		"@typescript-eslint/parser": "5.29.0",
-		"browser-resolve": "^2.0.0",
-		"builtin-modules": "3.3.0",
-		"detective": "^5.2.1",
-		"esbuild": "0.14.47",
-		"obsidian": "latest",
-		"process": "^0.11.10",
-		"tslib": "2.4.0",
-		"typescript": "4.7.4"
-	},
-	"dependencies": {
-		"@aws-sdk/client-s3": "3.317.0",
-		"@aws-sdk/fetch-http-handler": "^3.310.0",
-		"@aws-sdk/protocol-http": "^3.310.0",
-		"@aws-sdk/querystring-builder": "^3.310.0",
-		"@aws-sdk/types": "^3.535.0",
-		"@smithy/fetch-http-handler": "^2.2.7"
-	}
+  "name": "s3agle",
+  "version": "0.1.5",
+  "description": "Attachment management for Obsidian.md",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "version": "node version-bump.mjs && git add manifest.json versions.json"
+  },
+  "keywords": [
+    "Eagle",
+    "S3",
+    "File Management",
+    "Attachments",
+    "Obsidian"
+  ],
+  "author": "me@turnercore.dev",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/mime-types": "^2.1.1",
+    "@types/node": "^18.11.18",
+    "@typescript-eslint/eslint-plugin": "5.29.0",
+    "@typescript-eslint/parser": "5.29.0",
+    "browser-resolve": "^2.0.0",
+    "builtin-modules": "3.3.0",
+    "detective": "^5.2.1",
+    "esbuild": "0.14.47",
+    "obsidian": "latest",
+    "process": "^0.11.10",
+    "tslib": "2.4.0",
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.317.0",
+    "@aws-sdk/fetch-http-handler": "^3.310.0",
+    "@aws-sdk/protocol-http": "^3.310.0",
+    "@aws-sdk/querystring-builder": "^3.310.0",
+    "@aws-sdk/types": "^3.535.0",
+    "@smithy/fetch-http-handler": "^2.2.7"
+  }
 }
