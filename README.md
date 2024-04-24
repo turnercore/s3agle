@@ -108,3 +108,5 @@ PR's are welcome! Features that I would like to add include:
 - [ ] Use Eagle instead of vault storage for local link previews (this may require an update to the Eagle API before it is possible)
 - [ ] File viewer with thumbnails for Eagle files to insert them into the note.
 - [ ] Ability to insert already uploaded files into new documents.
+
+If you enjoy this plugin, throw some support by making PR improvements, contributing by donating, and making issue and bug reports.
