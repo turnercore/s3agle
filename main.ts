@@ -26,6 +26,7 @@ import {
 } from "@aws-sdk/fetch-http-handler"
 import { HttpRequest, HttpResponse } from "@aws-sdk/protocol-http"
 import { requestTimeout } from "@smithy/fetch-http-handler/dist-es/request-timeout"
+import { randomInt } from "crypto"
 
 /**
  * Defines the settings structure for the S3agle Obsidian Plugin.
@@ -39,7 +40,6 @@ interface S3agleSettings {
   folder: string // Default folder path within the S3 bucket
   eagleApiUrl: string // URL to the Eagle API, usually localhost
   uploadOnDrag: boolean // Enable uploading files on drag-and-drop
-  localFirst: boolean // Prefer local storage over S3 initially
   useEagle: boolean // Enable integration with Eagle software
   useS3: boolean // Enable integration with Amazon S3
   bypassCors: boolean // Bypass CORS restrictions
@@ -53,6 +53,8 @@ interface S3agleSettings {
   uploadAudio: boolean // Upload audio files
   uploadPdf: boolean // Upload PDF files
   contentUrl: string // Content URL
+  hashFileName: boolean // Hash the file name before uploading
+  hashSeed: number // Seed for hashing the file name
 }
 
 /**
@@ -68,7 +70,6 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   s3Url: "",
   eagleApiUrl: "http://localhost:41595/",
   uploadOnDrag: true,
-  localFirst: false,
   useEagle: true,
   useS3: true,
   bypassCors: false,
@@ -81,6 +82,8 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   uploadVideo: true,
   uploadAudio: true,
   uploadPdf: true,
+  hashFileName: false,
+  hashSeed: 0,
 }
 
 interface pasteFunction {
@@ -140,10 +143,11 @@ export default class S3aglePlugin extends Plugin {
     if (!noteFile || !noteFile.name) return
 
     const fm = this.app.metadataCache.getFileCache(noteFile)?.frontmatter
+    // Determine if the file should be uploaded to S3 or local storage
     const localUpload =
       fm?.S3agleLocalOnly !== undefined
         ? fm?.S3agleLocalOnly
-        : this.settings.localFirst || this.settings.useS3 === false
+        : this.settings.useS3 === false
 
     let files: File[] = []
     switch (ev.type) {
@@ -151,7 +155,8 @@ export default class S3aglePlugin extends Plugin {
         files = Array.from((ev as ClipboardEvent).clipboardData?.files || [])
         break
       case "drop":
-        if (!this.settings.uploadOnDrag && !(fm && fm.uploadOnDrag)) return
+        if (!this.settings.uploadOnDrag && !(fm && fm.S3eagleUploadOnDrag))
+          return
         files = Array.from((ev as DragEvent).dataTransfer?.files || [])
         break
     }
@@ -160,7 +165,8 @@ export default class S3aglePlugin extends Plugin {
       ev.preventDefault()
 
       const uploads = files.map(async (file) => {
-        const placeholder = `![Uploading ${file.name}…]`
+        const fileName = this.hashNameIfNeeded(file.name)
+        const placeholder = `![Uploading ${fileName}…]`
         editor.replaceSelection(placeholder)
         try {
           await this.processAndUploadFile(
@@ -400,13 +406,14 @@ export default class S3aglePlugin extends Plugin {
         console.log(url)
         try {
           // Grab current note location
+          const fileName = this.hashNameIfNeeded(file.name)
           const noteLocation = this.app.workspace.getActiveFile()?.path
           const obsidianURL = noteLocation
             ? `obsidian://open?path=${encodeURIComponent(noteLocation)}`
             : ""
           const data = {
             url,
-            name: file.name,
+            name: fileName,
             website: url,
             tags: ["Obsidian", "S3"],
             folderId,
@@ -477,6 +484,18 @@ export default class S3aglePlugin extends Plugin {
       console.error("Failed to fetch folder list:", error)
       return null
     }
+  }
+
+  // hash a string
+  hashString = (str: string): string => {
+    let hash = this.settings.hashSeed
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      // Multiplying by a prime number before XORing helps distribute the values more uniformly
+      hash = (hash * 33) ^ char // ^ is XOR operation
+    }
+    // Convert to a positive 32-bit integer and return as a string
+    return (hash >>> 0).toString()
   }
 
   //Find a folder in the Eagle folder tree
@@ -604,9 +623,13 @@ export default class S3aglePlugin extends Plugin {
         const file = this.app.vault.getAbstractFileByPath(filePath)
         if (file instanceof TFile) {
           const blob = await this.app.vault.readBinary(file)
-          const fileToUpload = new File([blob], file.name, {
-            type: getObsidianMimeType(file.extension),
-          })
+          const fileToUpload = new File(
+            [blob],
+            this.hashNameIfNeeded(file.name),
+            {
+              type: getObsidianMimeType(file.extension),
+            },
+          )
           uploads.push(
             this.processAndUploadFile(
               fileToUpload,
@@ -773,128 +796,249 @@ export default class S3aglePlugin extends Plugin {
     if (!response.ok) throw new Error("Network response was not ok.")
     return new Uint8Array(await response.arrayBuffer()) // Assuming binary data
   }
+
+  // hash file name if needed
+  hashNameIfNeeded(fileName: string): string {
+    return this.settings.hashFileName ? this.hashString(fileName) : fileName
+  }
 }
 
-// Settings tab for the plugin
 class S3agleSettingTab extends PluginSettingTab {
   plugin: S3aglePlugin
 
   display() {
+    this.drawSettings()
+  }
+
+  drawSettings() {
     const { containerEl } = this
     containerEl.empty()
 
-    containerEl.createEl("h2", { text: "S3agle Plugin Settings" })
+    containerEl.createEl("h1", { text: "S3agle Plugin Settings" })
+    containerEl.createEl("p", {
+      text: "You can use the following variables in your frontmatter to override the plugin settings for a specific note:",
+    })
+    containerEl.createEl("p", {
+      text: "S3agleLocalOnly: true/false - Use local storage only for this note.",
+    })
+    containerEl.createEl("p", {
+      text: "S3agleUploadOnDrag: true/false - Upload files on drag-and-drop for this note.",
+    })
 
+    // Group: General Settings
+    containerEl.createEl("h3", { text: "General Settings" })
+    // Setting to uploadOnDrag
     new Setting(containerEl)
-      .setName("AWS Access Key ID")
-      .setDesc("AWS access key ID for S3 access.")
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.accessKey)
-          .onChange(async (value) => {
-            this.plugin.settings.accessKey = value.trim()
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("AWS Secret Access Key")
-      .setDesc("AWS secret access key for S3 access.")
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.secretKey)
-          .onChange(async (value) => {
-            this.plugin.settings.secretKey = value.trim()
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("S3 Bucket")
-      .setDesc("Name of the S3 bucket.")
-      .addText((text) =>
-        text.setValue(this.plugin.settings.bucket).onChange(async (value) => {
-          this.plugin.settings.bucket = value.trim()
-          await this.plugin.saveSettings()
-        }),
-      )
-
-    new Setting(containerEl)
-      .setName("S3 Region")
-      .setDesc("Name of the S3 region.")
-      .addText((text) =>
-        text.setValue(this.plugin.settings.region).onChange(async (value) => {
-          this.plugin.settings.region = value.trim()
-          await this.plugin.saveSettings()
-        }),
-      )
-
-    new Setting(containerEl)
-      .setName("S3 Folder Path")
-      .setDesc("The default folder path within the S3 bucket.")
-      .addText((text) =>
-        text.setValue(this.plugin.settings.folder).onChange(async (value) => {
-          this.plugin.settings.folder = value.trim()
-          await this.plugin.saveSettings()
-        }),
-      )
-
-    new Setting(containerEl)
-      .setName("Eagle API URL")
-      .setDesc("URL to the Eagle API, usually localhost.")
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.eagleApiUrl)
-          .onChange(async (value) => {
-            this.plugin.settings.eagleApiUrl = value.trim()
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("Use custom S3 endpoint")
-      .setDesc("Use the custom api endpoint below.")
-      .addToggle((toggle) => {
+      .setName("Upload on Drag-and-Drop")
+      .setDesc("Enable uploading files on drag-and-drop.\n Recommended.")
+      .addToggle((toggle) =>
         toggle
-          .setValue(this.plugin.settings.useCustomEndpoint)
+          .setValue(this.plugin.settings.uploadOnDrag)
           .onChange(async (value) => {
-            this.plugin.settings.useCustomEndpoint = value
+            this.plugin.settings.uploadOnDrag = value
             await this.plugin.saveSettings()
-          })
-      })
-
-    new Setting(containerEl)
-      .setName("Custom S3 Endpoint")
-      .setDesc(
-        "Optionally set a custom endpoint for any S3 compatible storage provider.",
+          }),
       )
-      .addText((text) =>
-        text
-          .setPlaceholder("https://s3.myhost.com/")
-          .setValue(this.plugin.settings.s3Url)
+    // Setting to hash the file name
+    new Setting(containerEl)
+      .setName("Hash File Names")
+      .setDesc(
+        "Hash the file name before uploading.\n Keeps the file name private and unique.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.hashFileName)
           .onChange(async (value) => {
-            value = value.match(/https?:\/\//) // Force to start http(s)://
-              ? value
-              : "https://" + value
-            value = value.replace(/([^/])$/, "$1/") // Force to end with slash
-            this.plugin.settings.s3Url = value.trim()
+            this.plugin.settings.hashFileName = value
             await this.plugin.saveSettings()
           }),
       )
 
-    // new Setting(containerEl)
-    //   .setName("S3 Path Style URLs")
-    //   .setDesc(
-    //     "Advanced option to force using (legacy) path-style s3 URLs (s3.myhost.com/bucket) instead of the modern AWS standard host-style (bucket.s3.myhost.com).",
-    //   )
-    //   .addToggle((toggle) => {
-    //     toggle
-    //       .setValue(this.plugin.settings.forcePathStyle)
-    //       .onChange(async (value) => {
-    //         this.plugin.settings.forcePathStyle = value
-    //         await this.plugin.saveSettings()
-    //       })
-    //   })
+    // Button to reset hash seed
+    new Setting(containerEl)
+      .setName("Reset Hash Seed")
+      .setDesc(
+        "Reset the seed used for hashing file names. Used if you need to upload the same file again and want it to hash to a different name.",
+      )
+      .addButton((button) =>
+        button.setButtonText("Reset Seed").onClick(async () => {
+          this.plugin.settings.hashSeed = randomInt(1000000)
+          await this.plugin.saveSettings()
+          new Notice("S3agle: Hash seed reset.")
+        }),
+      )
+
+    // Group: S3 Integration Settings
+    containerEl.createEl("h3", { text: "S3 Integration Settings" })
+    new Setting(containerEl)
+      .setName("Enable S3 Integration")
+      .setDesc("Enable integration with Amazon S3.")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.useS3).onChange(async (value) => {
+          this.plugin.settings.useS3 = value
+          await this.plugin.saveSettings()
+          this.drawSettings()
+        }),
+      )
+
+    if (this.plugin.settings.useS3) {
+      new Setting(containerEl)
+        .setName("AWS Access Key ID")
+        .setDesc("AWS access key ID for S3 access.")
+        .addText((text) =>
+          text
+            .setValue(this.plugin.settings.accessKey)
+            .onChange(async (value) => {
+              this.plugin.settings.accessKey = value.trim()
+              await this.plugin.saveSettings()
+              this.drawSettings()
+            }),
+        )
+
+      new Setting(containerEl)
+        .setName("AWS Secret Access Key")
+        .setDesc("AWS secret access key for S3 access.")
+        .addText((text) =>
+          text
+            .setValue(this.plugin.settings.secretKey)
+            .onChange(async (value) => {
+              this.plugin.settings.secretKey = value.trim()
+              await this.plugin.saveSettings()
+            }),
+        )
+        .setDisabled(!this.plugin.settings.useS3)
+
+      new Setting(containerEl)
+        .setName("S3 Bucket")
+        .setDesc("Name of the S3 bucket.")
+        .addText((text) =>
+          text.setValue(this.plugin.settings.bucket).onChange(async (value) => {
+            this.plugin.settings.bucket = value.trim()
+            await this.plugin.saveSettings()
+          }),
+        )
+
+      new Setting(containerEl)
+        .setName("S3 Region")
+        .setDesc("Name of the S3 region.")
+        .addText((text) =>
+          text.setValue(this.plugin.settings.region).onChange(async (value) => {
+            this.plugin.settings.region = value.trim()
+            await this.plugin.saveSettings()
+          }),
+        )
+
+      new Setting(containerEl)
+        .setName("S3 Folder Path")
+        .setDesc(
+          "The path within the S3 bucket. You can use the following variables ${year}, ${month}, ${day}.",
+        )
+        .addText((text) =>
+          text.setValue(this.plugin.settings.folder).onChange(async (value) => {
+            this.plugin.settings.folder = value.trim()
+            await this.plugin.saveSettings()
+          }),
+        )
+
+      new Setting(containerEl)
+        .setName("Use custom S3 endpoint")
+        .setDesc(
+          "Use a custom api endpoint for S3. This is the endpoint where you will send your files.",
+        )
+        .addToggle((toggle) => {
+          toggle
+            .setValue(this.plugin.settings.useCustomEndpoint)
+            .onChange(async (value) => {
+              this.plugin.settings.useCustomEndpoint = value
+              await this.plugin.saveSettings()
+              this.drawSettings()
+            })
+        })
+
+      if (this.plugin.settings.useCustomEndpoint) {
+        new Setting(containerEl)
+          .setName("Custom S3 Endpoint")
+          .setDesc("Custom endpoint for any S3 compatible provider.")
+          .addText((text) =>
+            text
+              .setPlaceholder("https://s3.myhost.com/")
+              .setValue(this.plugin.settings.s3Url)
+              .onChange(async (value) => {
+                value = value.match(/https?:\/\//) // Force to start http(s)://
+                  ? value
+                  : "https://" + value
+                value = value.replace(/([^/])$/, "$1/") // Force to end with slash
+                this.plugin.settings.s3Url = value.trim()
+                await this.plugin.saveSettings()
+              }),
+          )
+      }
+
+      // new Setting(containerEl)
+      //   .setName("S3 Path Style URLs")
+      //   .setDesc(
+      //     "Advanced option to force using (legacy) path-style s3 URLs (s3.myhost.com/bucket) instead of the modern AWS standard host-style (bucket.s3.myhost.com).",
+      //   )
+      //   .addToggle((toggle) => {
+      //     toggle
+      //       .setValue(this.plugin.settings.forcePathStyle)
+      //       .onChange(async (value) => {
+      //         this.plugin.settings.forcePathStyle = value
+      //         await this.plugin.saveSettings()
+      //       })
+      //   })
+
+      new Setting(containerEl)
+        .setName("Use custom content URL for retrieving files.")
+        .setDesc(
+          "Use the custom content URL below.\n This is the base url for your public links. If you are using a CDN or a custom domain, you can set it here.",
+        )
+        .addToggle((toggle) => {
+          toggle
+            .setValue(this.plugin.settings.useCustomContentUrl)
+            .onChange(async (value) => {
+              this.plugin.settings.useCustomContentUrl = value
+              await this.plugin.saveSettings()
+              this.drawSettings()
+            })
+        })
+
+      if (this.plugin.settings.useCustomContentUrl) {
+        new Setting(containerEl)
+          .setName("Custom Content URL")
+          .setDesc(
+            "Set the base url for your public buckets. This is the URL that will be used to access your files.",
+          )
+          .addText((text) =>
+            text
+              .setValue(this.plugin.settings.customContentUrl)
+              .onChange(async (value) => {
+                value = value.match(/https?:\/\//) // Force to start http(s)://
+                  ? value
+                  : "https://" + value
+                value = value.replace(/([^/])$/, "$1/") // Force to end with slash
+                this.plugin.settings.customContentUrl = value.trim()
+                await this.plugin.saveSettings()
+              }),
+          )
+      }
+
+      // new Setting(containerEl)
+      //   .setName("Bypass CORS")
+      //   .setDesc("Bypass CORS restrictions.")
+      //   .addToggle((toggle) =>
+      //     toggle.setValue(this.plugin.settings.bypassCors).onChange(async (value) => {
+      //       this.plugin.settings.bypassCors = value
+      //       await this.plugin.saveSettings()
+      //     }),
+      //   )
+    }
+
+    // Group: Eagle Storage Settings
+    containerEl.createEl("h3", { text: "Eagle Integration Settings" })
+    containerEl.createEl("p", {
+      text: "Eagle is an app to store and organize your files. Using it is optional with this plugin.\n You can find Eagle here: http://eagle.cool \n If you disable this vault storage will be used instead.",
+    })
 
     new Setting(containerEl)
       .setName("Local Upload Folder")
@@ -911,84 +1055,176 @@ class S3agleSettingTab extends PluginSettingTab {
       )
 
     new Setting(containerEl)
-      .setName("Use custom content URL")
-      .setDesc("Use the custom content URL below.")
-      .addToggle((toggle) => {
-        toggle
-          .setValue(this.plugin.settings.useCustomContentUrl)
-          .onChange(async (value) => {
-            this.plugin.settings.useCustomContentUrl = value
-            await this.plugin.saveSettings()
-          })
-      })
-
-    new Setting(containerEl)
-      .setName("Custom Content URL")
-      .setDesc(
-        "Advanced option to force inserting custom image URLs. This option is helpful if you are using CDN.",
-      )
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.customContentUrl)
-          .onChange(async (value) => {
-            value = value.match(/https?:\/\//) // Force to start http(s)://
-              ? value
-              : "https://" + value
-            value = value.replace(/([^/])$/, "$1/") // Force to end with slash
-            this.plugin.settings.customContentUrl = value.trim()
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("Enable Upload on Drag")
-      .setDesc("Enable uploading files on drag-and-drop.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.uploadOnDrag)
-          .onChange(async (value) => {
-            this.plugin.settings.uploadOnDrag = value
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("Use Local Storage First")
-      .setDesc("Prefer local storage over S3 initially.")
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.localFirst)
-          .onChange(async (value) => {
-            this.plugin.settings.localFirst = value
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("Enable Eagle Integration")
-      .setDesc("Enable integration with Eagle software.")
+      .setName("Enable Eagle for Local Storage")
+      .setDesc("Enable integration with Eagle app.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.useEagle)
           .onChange(async (value) => {
             this.plugin.settings.useEagle = value
             await this.plugin.saveSettings()
+            this.drawSettings()
           }),
       )
 
-    new Setting(containerEl)
-      .setName("Enable S3 Integration")
-      .setDesc("Enable integration with Amazon S3.")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.useS3).onChange(async (value) => {
-          this.plugin.settings.useS3 = value
-          await this.plugin.saveSettings()
-        }),
-      )
-
-    // Include any additional settings as needed
+    if (this.plugin.settings.useEagle) {
+      new Setting(containerEl)
+        .setName("Eagle API URL")
+        .setDesc(
+          "URL to the Eagle API, usually localhost. If you change this remember to include the port.",
+        )
+        .addText((text) =>
+          text
+            .setValue(
+              this.plugin.settings.eagleApiUrl || "http://localhost:41595/",
+            )
+            .onChange(async (value) => {
+              this.plugin.settings.eagleApiUrl = value.trim()
+              await this.plugin.saveSettings()
+            }),
+        )
+    }
   }
 }
+
+// class S3agleSettingTab extends PluginSettingTab {
+//   plugin: S3aglePlugin
+
+//   display() {
+//     const { containerEl } = this
+//     containerEl.empty()
+
+//     containerEl.createEl("h2", { text: "S3agle Plugin Settings" })
+
+//     new Setting(containerEl)
+//       .setName("AWS Access Key ID")
+//       .setDesc("AWS access key ID for S3 access.")
+//       .addText((text) =>
+//         text
+//           .setValue(this.plugin.settings.accessKey)
+//           .onChange(async (value) => {
+//             this.plugin.settings.accessKey = value.trim()
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("AWS Secret Access Key")
+//       .setDesc("AWS secret access key for S3 access.")
+//       .addText((text) =>
+//         text
+//           .setValue(this.plugin.settings.secretKey)
+//           .onChange(async (value) => {
+//             this.plugin.settings.secretKey = value.trim()
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("S3 Bucket")
+//       .setDesc("Name of the S3 bucket.")
+//       .addText((text) =>
+//         text.setValue(this.plugin.settings.bucket).onChange(async (value) => {
+//           this.plugin.settings.bucket = value.trim()
+//           await this.plugin.saveSettings()
+//         }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("S3 Region")
+//       .setDesc("Name of the S3 region.")
+//       .addText((text) =>
+//         text.setValue(this.plugin.settings.region).onChange(async (value) => {
+//           this.plugin.settings.region = value.trim()
+//           await this.plugin.saveSettings()
+//         }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("S3 Folder Path")
+//       .setDesc("The default folder path within the S3 bucket.")
+//       .addText((text) =>
+//         text.setValue(this.plugin.settings.folder).onChange(async (value) => {
+//           this.plugin.settings.folder = value.trim()
+//           await this.plugin.saveSettings()
+//         }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Eagle API URL")
+//       .setDesc("URL to the Eagle API, usually localhost.")
+//       .addText((text) =>
+//         text
+//           .setValue(this.plugin.settings.eagleApiUrl)
+//           .onChange(async (value) => {
+//             this.plugin.settings.eagleApiUrl = value.trim()
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Local Upload Folder")
+//       .setDesc(
+//         "The folder to put new files in locally if not using Eagle integration.",
+//       )
+//       .addText((text) =>
+//         text
+//           .setValue(this.plugin.settings.localUploadFolder)
+//           .onChange(async (value) => {
+//             this.plugin.settings.localUploadFolder = value.trim()
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Enable Upload on Drag")
+//       .setDesc("Enable uploading files on drag-and-drop.")
+//       .addToggle((toggle) =>
+//         toggle
+//           .setValue(this.plugin.settings.uploadOnDrag)
+//           .onChange(async (value) => {
+//             this.plugin.settings.uploadOnDrag = value
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Use Local Storage First")
+//       .setDesc("Prefer local storage over S3 initially.")
+//       .addToggle((toggle) =>
+//         toggle
+//           .setValue(this.plugin.settings.localFirst)
+//           .onChange(async (value) => {
+//             this.plugin.settings.localFirst = value
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Enable Eagle Integration")
+//       .setDesc("Enable integration with Eagle software.")
+//       .addToggle((toggle) =>
+//         toggle
+//           .setValue(this.plugin.settings.useEagle)
+//           .onChange(async (value) => {
+//             this.plugin.settings.useEagle = value
+//             await this.plugin.saveSettings()
+//           }),
+//       )
+
+//     new Setting(containerEl)
+//       .setName("Enable S3 Integration")
+//       .setDesc("Enable integration with Amazon S3.")
+//       .addToggle((toggle) =>
+//         toggle.setValue(this.plugin.settings.useS3).onChange(async (value) => {
+//           this.plugin.settings.useS3 = value
+//           await this.plugin.saveSettings()
+//         }),
+//       )
+
+//     // Include any additional settings as needed
+//   }
+// }
 
 // Creates the correct kind of markdown link based on the filetype so that the file will preview correctly in Obsidian
 const wrapFileDependingOnType = (
@@ -1132,7 +1368,8 @@ class ObsHttpHandler extends FetchHttpHandler {
 const bufferToArrayBuffer = (b: Buffer | Uint8Array | ArrayBufferView) => {
   return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
 }
-
+//ignore unused, this is in progress for upload/download a single file.
+//eslint-disable-next-line @typescript-eslint/no-unused-vars
 class FileActionSuggestModal extends SuggestModal<FileReference> {
   private fileReferences: FileReference[] = []
   private actionCallback: (fileRef: FileReference) => void

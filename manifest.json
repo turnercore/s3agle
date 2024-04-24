@@ -1,7 +1,7 @@
 {
 	"id": "s3agle",
 	"name": "S3agle",
-	"version": "0.1.6",
+	"version": "0.2.0",
 	"minAppVersion": "1.5.0",
 	"description": "This plugin integrates with S3 providers as well as Eagle file manager. Both S3 and Eagle are optional and can be used independently.",
 	"author": "turnercore",
