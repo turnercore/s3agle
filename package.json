@@ -1,6 +1,6 @@
 {
   "name": "s3agle",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Attachment management for Obsidian.md",
   "main": "main.js",
   "scripts": {
