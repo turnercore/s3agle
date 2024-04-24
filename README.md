@@ -89,6 +89,6 @@ This command will upload all the files that it can find in the current note to S
 
 PR's are welcome! Features that I would like to add include:
 
--[] Upload and download individual files
--[] Use Eagle instead of vault storage for local link previews (this may require an update to the Eagle API before it is possible)
--[] File viewer with thumbnails for Eagle files to insert them into the note.
+- [ ] Upload and download individual files
+- [ ] Use Eagle instead of vault storage for local link previews (this may require an update to the Eagle API before it is possible)
+- [ ] File viewer with thumbnails for Eagle files to insert them into the note.
