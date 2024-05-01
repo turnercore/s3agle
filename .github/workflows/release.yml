@@ -13,12 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.1.4
-      - name: Use Node.js
+      - name: Checkout
+        uses: actions/checkout@v4.1.4
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4.0.2
-        with:
-          node-version: "20.x"
-          cache: "yarn"
       - name: Build
         run: |
           yarn
@@ -28,7 +26,7 @@ jobs:
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
           echo "TAG_NAME=$(git tag --sort version:refname | tail -n 1)" >> $GITHUB_ENV
       - name: Create Release
-        uses: actions/create-release@v1.1.4
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
