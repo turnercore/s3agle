@@ -67,7 +67,7 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   bucket: "",
   folder: "",
   useCustomEndpoint: false,
-  s3Url: "",
+  s3Url: "s3.amazonaws.com",
   eagleApiUrl: "http://localhost:41595/",
   uploadOnDrag: true,
   useEagle: true,
