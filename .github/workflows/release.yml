@@ -5,6 +5,11 @@ on:
     tags:
       - "*" # Push events to matching any tag format, i.e. 1.0, 20.15.10
 
+permissions:
+  contents: write
+  actions: write
+  packages: write
+
 env:
   PLUGIN_NAME: s3agle # Change this to the name of your plugin-id folder
 
