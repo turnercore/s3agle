@@ -12,6 +12,7 @@ permissions:
 
 env:
   PLUGIN_NAME: s3agle # Change this to the name of your plugin-id folder
+  TAG_NAME: ${{ github.ref }}
 
 jobs:
   build:
@@ -31,6 +32,7 @@ jobs:
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
           echo "TAG_NAME=$(git tag --sort version:refname | tail -n 1)" >> $GITHUB_ENV
       - name: Create Release
+        id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
