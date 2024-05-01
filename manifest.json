@@ -1,11 +1,11 @@
 {
-  "id": "s3agle",
-  "name": "S3agle",
-  "version": "0.3.0",
-  "minAppVersion": "1.5.0",
-  "description": "Use S3 providers and/or Eagle to manage vault attachments locally and remotely.",
-  "author": "Turner Monroe (turnercore)",
-  "authorUrl": "https://github.com/turnercore",
-  "fundingUrl": "https://github.com/sponsors/turnercore",
-  "isDesktopOnly": true
+	"id": "s3agle",
+	"name": "S3agle",
+	"version": "0.3.1",
+	"minAppVersion": "1.5.0",
+	"description": "Use S3 providers and/or Eagle to manage vault attachments locally and remotely.",
+	"author": "Turner Monroe (turnercore)",
+	"authorUrl": "https://github.com/turnercore",
+	"fundingUrl": "https://github.com/sponsors/turnercore",
+	"isDesktopOnly": true
 }
