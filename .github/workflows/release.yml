@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout
+      - uses: actions/checkout@v4.1.4
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4.0.2
         with:
           node-version: "20.x"
           cache: "yarn"
@@ -28,7 +28,7 @@ jobs:
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
           echo "TAG_NAME=$(git tag --sort version:refname | tail -n 1)" >> $GITHUB_ENV
       - name: Create Release
-        uses: actions/create-release
+        uses: actions/create-release@v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -37,7 +37,7 @@ jobs:
           draft: false
           prerelease: false
       - name: Upload zip file
-        uses: actions/upload-release-asset
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -46,7 +46,7 @@ jobs:
           asset_name: ${{ env.PLUGIN_NAME }}-${{ env.TAG_NAME }}.zip
           asset_content_type: application/zip
       - name: Upload main.js
-        uses: actions/upload-release-asset
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -55,7 +55,7 @@ jobs:
           asset_name: main.js
           asset_content_type: text/javascript
       - name: Upload manifest.json
-        uses: actions/upload-release-asset
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -66,7 +66,7 @@ jobs:
 
     # - name: Upload styles.css
     #   id: upload-css
-    #   uses: actions/upload-release-asset
+    #   uses: actions/upload-release-asset@v1.0.2
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
