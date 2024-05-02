@@ -337,7 +337,6 @@ export default class S3aglePlugin extends Plugin {
       // Check to see if the file exists on S3
       let exists = false
       try {
-        console.log(`checking if file exists: ${key}`)
         const response = await this.s3.send(
           new ListObjectsCommand({
             Bucket: this.settings.bucket,
@@ -347,7 +346,7 @@ export default class S3aglePlugin extends Plugin {
         exists =
           response.Contents?.some((object) => object.Key === key) || false
       } catch (error) {
-        console.log("Error checking if file exists:", error)
+        console.error("Error checking if file exists:", error)
       }
 
       try {
@@ -402,8 +401,6 @@ export default class S3aglePlugin extends Plugin {
       // We can upload via URL regardless of the file's location if Eagle is local
       // If Eagle is not local we will need to upload to S3 first
       if (url) {
-        console.log("Uploading file to Eagle via URL")
-        console.log(url)
         try {
           // Grab current note location
           const fileName = this.hashNameIfNeeded(file.name)
@@ -425,7 +422,6 @@ export default class S3aglePlugin extends Plugin {
             method: "POST",
             body: JSON.stringify(data),
           })
-          console.log(response)
           new Notice("S3agle: Uploaded file to Eagle.")
           if (!response.ok) {
             throw new Error("Failed to upload file to Eagle.")
@@ -447,7 +443,6 @@ export default class S3aglePlugin extends Plugin {
     folderPath: string,
     createPathIfNotExist = true,
   ): Promise<string | null> {
-    console.log("Getting Eagle Folder ID for path: ", folderPath)
     try {
       const requestOptions: RequestInit = {
         method: "GET",
@@ -580,8 +575,6 @@ export default class S3aglePlugin extends Plugin {
       }
 
       const dataObject: expectedResponse = await response.json()
-
-      console.log(`created folder with id ${dataObject.data.id}`)
 
       return dataObject.data.id || null
     } catch (error) {
@@ -770,14 +763,10 @@ export default class S3aglePlugin extends Plugin {
     data: ArrayBuffer | Uint8Array,
     path: string,
   ): Promise<void> {
-    console.log("Starting file save process...")
-
     // Check if the folder exists, create if not
     const folderPath = normalizePath(this.settings.localUploadFolder)
     if (folderPath && !(await this.app.vault.adapter.exists(folderPath))) {
       await this.app.vault.createFolder(folderPath)
-    } else {
-      console.log(`Folder already exists: ${folderPath}`)
     }
 
     // Save the file in the vault
@@ -1217,7 +1206,6 @@ class FileActionSuggestModal extends SuggestModal<FileReference> {
   }
 
   async getFileReferences(): Promise<void> {
-    console.log("getting file references")
     const noteContent = await getNoteContent(this.app)
 
     switch (this.localOrS3) {
@@ -1243,7 +1231,6 @@ class FileActionSuggestModal extends SuggestModal<FileReference> {
   async onOpen(): Promise<void> {
     await this.getFileReferences()
     for (const fileRef of this.fileReferences) {
-      console.log(fileRef)
       this.renderSuggestion(fileRef, this.inputEl)
     }
   }
@@ -1378,7 +1365,6 @@ const extractFileNameFromUrl = (url: string): string => {
   if (filename === "") {
     filename = "untitled"
   }
-  console.log(filename)
   return filename
 }
 
