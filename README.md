@@ -5,15 +5,17 @@ This is a plugin for [Obsidian](https://obsidian.md). It was based off [S3 Image
 This project uses S3 Storage provider and/or [Eagle](https://eagle.cool/) to manage files locally. You can use each independiently.
 
 ## An overview of how to use this plugin, in 2 steps.
+
 1. Go to settings and configure the plugin.
-    - If you are using S3 storage you will need to get your S3 storage variables, including your accessKeyId, your secretAccessKey, your region, the bucket name, and the bucket folder if needed.
-    - If you want to use Eagle as well,  you'll need to download and install the Eagle app (https://eagle.cool), and have it running in the background.
+   - If you are using S3 storage you will need to get your S3 storage variables, including your accessKeyId, your secretAccessKey, your region, the bucket name, and the bucket folder if needed.
+   - If you want to use Eagle as well, you'll need to download and install the Eagle app (https://eagle.cool), and have it running in the background.
 2. Drag and drop or copy and paste a file into your notes. Your files will be automatically uploaded and a preview link created for S3 and/or Eagle depending on your settings.
 
-A couple of other use cases: 
+A couple of other use cases:
+
 - Uploading all files in a note to S3/Eagle with a command. Note that this will not delete the file in your vault.
-- Downloading and converting uploaded S3  files back into vault files. These will also be uploaded to Eagle if you are using it.
-- Using the plugin without S3 uploads to offload your vault files into an Eagle library. Note that, for now, this will break most ways to preview the files, which is why S3 is recomended. 
+- Downloading and converting uploaded S3 files back into vault files. These will also be uploaded to Eagle if you are using it.
+- Using the plugin without S3 uploads to offload your vault files into an Eagle library. Note that, for now, this will break most ways to preview the files, which is why S3 is recomended.
 
 ## What is Eagle?
 
@@ -110,6 +112,10 @@ If you are downloading files from S3 to make local, it will use vault storage as
 If Eagle is turned off the plugin will skip any Eagle related steps, and use local vault storage or S3 only.
 
 If S3 is disabled, files won't be uploaded to S3, but will still be uploaded to Eagle.
+
+## Generating file embeddings
+
+A good reason to use S3 along with Eagle is to allow the embedding of files within the Obsidian note. When using S3 storage, the plugin can embed .pdf files and .ppt files by using Google Docs pdf viewer for pdf and Microsoft Office ppt viewer for ppt file embeds. This can be turned off in which case only a link will be generated.
 
 ## Development
 
