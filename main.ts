@@ -836,7 +836,7 @@ class S3agleSettingTab extends PluginSettingTab {
         "Reset the seed used for hashing file names. Used if you need to upload the same file again and want it to hash to a different name.",
       )
       .addButton((button) =>
-        button.setButtonText("Reset Seed").onClick(async () => {
+        button.setButtonText("Reset seed").onClick(async () => {
           this.plugin.settings.hashSeed = randomInt(1000000)
           await this.plugin.saveSettings()
           new Notice("S3agle: Hash seed reset.")
