@@ -117,6 +117,10 @@ If S3 is disabled, files won't be uploaded to S3, but will still be uploaded to 
 
 A good reason to use S3 along with Eagle is to allow the embedding of files within the Obsidian note. When using S3 storage, the plugin can embed .pdf files and .ppt files by using Google Docs pdf viewer for pdf and Microsoft Office ppt viewer for ppt file embeds. This can be turned off in which case only a link will be generated.
 
+## Hasing file names
+
+If you would like more privacy in your file names, or just to ensure they are unique, there is an option to enable file name hashing in the settings. The same filename will generate the same hash to avoid uploading the file over and over to S3. The "Reset seed" button is there in case you want the same input filename to generate a different hash for some reason.
+
 ## Development
 
 PR's are welcome! Features that I would like to add include:
