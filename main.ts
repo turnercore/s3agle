@@ -55,6 +55,8 @@ interface S3agleSettings {
   contentUrl: string // Content URL
   hashFileName: boolean // Hash the file name before uploading
   hashSeed: number // Seed for hashing the file name
+  useGoogleDocsViewer: boolean // Use Google Docs Viewer for PDFs
+  useMicrosoftOfficeViewer: boolean // Use Microsoft Office Viewer for PDFs
 }
 
 /**
@@ -84,6 +86,8 @@ const DEFAULT_SETTINGS: S3agleSettings = {
   uploadPdf: true,
   hashFileName: false,
   hashSeed: 0,
+  useGoogleDocsViewer: true,
+  useMicrosoftOfficeViewer: true,
 }
 
 interface pasteFunction {
@@ -378,6 +382,7 @@ export default class S3aglePlugin extends Plugin {
           url,
           detectFileType(file),
           "",
+          this.settings,
         )
         this.replaceText(editor, placeholder, imgMarkdownText)
       } catch (error) {
@@ -843,6 +848,34 @@ class S3agleSettingTab extends PluginSettingTab {
         }),
       )
 
+    new Setting(containerEl)
+      .setName("Use Google docs viewer for PDF file embeddings")
+      .setDesc(
+        "Use Google Docs Viewer for PDF files stored on S3. If disabled, the PDF preview will not render, but the file will still be uploaded.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useGoogleDocsViewer)
+          .onChange(async (value) => {
+            this.plugin.settings.useGoogleDocsViewer = value
+            await this.plugin.saveSettings()
+          }),
+      )
+
+    new Setting(containerEl)
+      .setName("Use Microsoft Office viewer for .ppt file embeddings")
+      .setDesc(
+        "Use Microsoft Office Viewer for PPT files stored on S3. If disabled, the PPT preview will not render, but the file will still be uploaded.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useMicrosoftOfficeViewer)
+          .onChange(async (value) => {
+            this.plugin.settings.useMicrosoftOfficeViewer = value
+            await this.plugin.saveSettings()
+          }),
+      )
+
     // new Setting(containerEl)
     //   .setName("Bypass CORS restrictions")
     //   .setDesc(
@@ -945,20 +978,6 @@ class S3agleSettingTab extends PluginSettingTab {
         }),
       )
 
-    // new Setting(containerEl)
-    //   .setName("Use custom S3 endpoint")
-    //   .setDesc(
-    //     "Specify a custom endpoint for any S3 compatible storage provider.",
-    //   )
-    //   .addToggle((toggle) =>
-    //     toggle
-    //       .setValue(this.plugin.settings.useCustomEndpoint)
-    //       .onChange(async (value) => {
-    //         this.plugin.settings.useCustomEndpoint = value
-    //         await this.plugin.saveSettings()
-    //         this.display() // Redraw settings to show or hide custom endpoint URL field
-    //       }),
-    //   )
     new Setting(containerEl)
       .setName("S3 endpoint")
       .setDesc("Enter the S3 endpoint URL. Will default to Amazon's S3.")
@@ -1047,6 +1066,7 @@ const wrapFileDependingOnType = (
   location: string,
   type: string,
   localBase: string,
+  settings: S3agleSettings,
 ) => {
   const srcPrefix = localBase ? "file://" + localBase + "/" : ""
 
@@ -1057,17 +1077,22 @@ const wrapFileDependingOnType = (
   } else if (type === "audio") {
     return `<audio src="${srcPrefix}${location}" controls />`
   } else if (type === "pdf") {
-    if (localBase) {
-      throw new Error("PDFs cannot be embedded in local mode")
+    if (settings.useGoogleDocsViewer && !localBase) {
+      return `<iframe frameborder=0 border=0 width=100% height=800
+      src="https://docs.google.com/viewer?embedded=true&url=${location}?raw=true">
+      </iframe>`
+    } else {
+      return `[pdf](${location})`
     }
-    return `<iframe frameborder=0 border=0 width=100% height=800
-		src="https://docs.google.com/viewer?embedded=true&url=${location}?raw=true">
-		</iframe>`
   } else if (type === "ppt") {
-    return `<iframe
+    if (settings.useMicrosoftOfficeViewer && !localBase) {
+      return `<iframe
 	    src='https://view.officeapps.live.com/op/embed.aspx?src=${location}' 
 	    width='100%' height='600px' frameborder='0'>
 	  </iframe>`
+    } else {
+      return `[ppt](${location})`
+    }
   } else {
     return `[file](${location})`
   }
