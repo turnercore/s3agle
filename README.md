@@ -123,7 +123,7 @@ If you would like more privacy in your file names, or just to ensure they are un
 
 ## Development
 
-PR's are welcome! Features that I would like to add include:
+Pull requests welcome! Features that I would like to add include:
 
 - [ ] Upload and download individual files from command.
 - [ ] Use Eagle for file embedding previews (this may require an update to the Eagle API before it is possible)
