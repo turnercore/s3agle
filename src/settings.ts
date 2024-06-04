@@ -1,13 +1,11 @@
-import {
-  Notice,
-  PluginSettingTab,
-  Setting,
-  SuggestModal,
-  App,
-} from "obsidian"
+import { Notice, PluginSettingTab, Setting, SuggestModal, App } from "obsidian"
 import { randomInt } from "crypto"
 import { FileReference } from "./types"
-import { extractLocalFileLinks, extractS3FileLinks, getNoteContent } from "./helpers"
+import {
+  extractLocalFileLinks,
+  extractS3FileLinks,
+  getNoteContent,
+} from "./helpers"
 import S3aglePlugin from "./main"
 
 /**
@@ -82,7 +80,7 @@ export class S3agleSettingTab extends PluginSettingTab {
     containerEl.empty()
 
     this.drawGeneralSettings(containerEl)
-    this.drawVaultSettings(containerEl) 
+    this.drawVaultSettings(containerEl)
     this.drawS3Settings(containerEl)
     this.drawEagleSettings(containerEl)
   }
@@ -167,13 +165,14 @@ export class S3agleSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.useVault = value
             await this.plugin.saveSettings()
+            this.display() // Redraw to show/hide S3 settings dynamically
           }),
       )
 
     if (this.plugin.settings.useVault) {
       new Setting(containerEl)
         .setName("Local upload folder")
-        .setDesc("The folder in the vault to store new files.")
+        .setDesc("The folder to store new files in locally if not using S3.")
         .addText((text) =>
           text
             .setValue(this.plugin.settings.localUploadFolder)
@@ -182,9 +181,9 @@ export class S3agleSettingTab extends PluginSettingTab {
               await this.plugin.saveSettings()
             }),
         )
+    }
   }
-}
-  
+
   drawS3Settings(containerEl: HTMLElement) {
     new Setting(containerEl).setName("S3").setHeading()
 
@@ -297,7 +296,7 @@ export class S3agleSettingTab extends PluginSettingTab {
         )
     }
 
-        new Setting(containerEl)
+    new Setting(containerEl)
       .setName("Use Google docs viewer for PDF file embeddings")
       .setDesc(
         "Use Google Docs Viewer for PDF files stored on S3. If disabled, the PDF preview will not render, but the file will still be uploaded.",
@@ -351,18 +350,6 @@ export class S3agleSettingTab extends PluginSettingTab {
             .setValue(this.plugin.settings.eagleApiUrl)
             .onChange(async (value) => {
               this.plugin.settings.eagleApiUrl = value.trim()
-              await this.plugin.saveSettings()
-            }),
-        )
-
-      new Setting(containerEl)
-        .setName("Local upload folder")
-        .setDesc("The folder to store new files in locally if not using S3.")
-        .addText((text) =>
-          text
-            .setValue(this.plugin.settings.localUploadFolder)
-            .onChange(async (value) => {
-              this.plugin.settings.localUploadFolder = value.trim()
               await this.plugin.saveSettings()
             }),
         )

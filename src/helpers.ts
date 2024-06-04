@@ -6,7 +6,6 @@ import {
 } from "@aws-sdk/fetch-http-handler"
 import { HttpRequest, HttpResponse } from "@aws-sdk/protocol-http"
 import { App, RequestUrlParam, TFile, requestUrl } from "obsidian"
-import { requestTimeout } from "@smithy/fetch-http-handler/dist-es/request-timeout"
 import { FileReference } from "./types"
 
 /**
@@ -15,6 +14,23 @@ import { FileReference } from "./types"
  * that is released under Apache 2 License.
  * But this uses Obsidian requestUrl instead.
  */
+
+export function requestTimeout(
+  timeoutInMs = 0,
+): Promise<{ response: HttpResponse }> {
+  return new Promise((resolve, reject) => {
+    if (timeoutInMs) {
+      setTimeout(() => {
+        const timeoutError = new Error(
+          `Request did not complete within ${timeoutInMs} ms`,
+        )
+        timeoutError.name = "TimeoutError"
+        reject(timeoutError)
+      }, timeoutInMs)
+    }
+  })
+}
+
 export class ObsHttpHandler extends FetchHttpHandler {
   requestTimeoutInMs: number | undefined
   constructor(options?: FetchHttpHandlerOptions) {
@@ -113,9 +129,9 @@ export class ObsHttpHandler extends FetchHttpHandler {
   }
 }
 
-
-
-export const bufferToArrayBuffer = (b: Buffer | Uint8Array | ArrayBufferView) => {
+export const bufferToArrayBuffer = (
+  b: Buffer | Uint8Array | ArrayBufferView,
+) => {
   return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)
 }
 
@@ -296,16 +312,20 @@ export const getNoteContent = async (app: App): Promise<string> => {
 
 // Optional Hashing functions to hide file names
 export const hashString = (str: string, hashSeed: number): string => {
-    let hash = hashSeed
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i)
-      // Multiplying by a prime number before XORing helps distribute the values more uniformly
-      hash = (hash * 33) ^ char // ^ is XOR operation
-    }
-    // Convert to a positive 32-bit integer and return as a string
-    return (hash >>> 0).toString()
+  let hash = hashSeed
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    // Multiplying by a prime number before XORing helps distribute the values more uniformly
+    hash = (hash * 33) ^ char // ^ is XOR operation
   }
+  // Convert to a positive 32-bit integer and return as a string
+  return (hash >>> 0).toString()
+}
 
-export const hashNameIfNeeded = (fileName: string, hashFileName: boolean, hashSeed: number): string => {
-    return hashFileName ? hashString(fileName, hashSeed) : fileName
-  }
+export const hashNameIfNeeded = (
+  fileName: string,
+  hashFileName: boolean,
+  hashSeed: number,
+): string => {
+  return hashFileName ? hashString(fileName, hashSeed) : fileName
+}
