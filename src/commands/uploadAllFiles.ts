@@ -1,7 +1,7 @@
 import { App, Command, Notice, TFile } from "obsidian";
-import { extractLocalFileLinks, getNoteContent, getObsidianMimeType, hashNameIfNeeded } from "src/helpers";
-import { processFile } from "src/processFile";
-import { S3agleSettings } from "src/settings";
+import { extractLocalFileLinks, getNoteContent, getObsidianMimeType, hashNameIfNeeded } from "../helpers";
+import { processFile } from "../processFile";
+import { S3agleSettings } from "../settings";
 
 
 export const uploadAllFilesCommand = (app: App, settings: S3agleSettings) :Command => {

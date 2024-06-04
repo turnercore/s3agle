@@ -2,7 +2,7 @@ import { App, Command, Notice } from "obsidian";
 import { extractFileNameFromUrl, isS3Url } from "../helpers";
 import { S3agleSettings } from "../settings";
 import { saveFileToVault } from "../vault/saveFileToVault";
-import { downloadFileFromS3 } from "src/s3/downloadFileFromS3";
+import { downloadFileFromS3 } from "../s3/downloadFileFromS3";
 
 export const downloadAllFilesCommand = (app: App, settings: S3agleSettings): Command => {
   return {

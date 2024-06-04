@@ -82,6 +82,7 @@ export class S3agleSettingTab extends PluginSettingTab {
     containerEl.empty()
 
     this.drawGeneralSettings(containerEl)
+    this.drawVaultSettings(containerEl) 
     this.drawS3Settings(containerEl)
     this.drawEagleSettings(containerEl)
   }
@@ -125,34 +126,6 @@ export class S3agleSettingTab extends PluginSettingTab {
         }),
       )
 
-    new Setting(containerEl)
-      .setName("Use Google docs viewer for PDF file embeddings")
-      .setDesc(
-        "Use Google Docs Viewer for PDF files stored on S3. If disabled, the PDF preview will not render, but the file will still be uploaded.",
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.useGoogleDocsViewer)
-          .onChange(async (value) => {
-            this.plugin.settings.useGoogleDocsViewer = value
-            await this.plugin.saveSettings()
-          }),
-      )
-
-    new Setting(containerEl)
-      .setName("Use Microsoft Office viewer for .ppt file embeddings")
-      .setDesc(
-        "Use Microsoft Office Viewer for PPT files stored on S3. If disabled, the PPT preview will not render, but the file will still be uploaded.",
-      )
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.useMicrosoftOfficeViewer)
-          .onChange(async (value) => {
-            this.plugin.settings.useMicrosoftOfficeViewer = value
-            await this.plugin.saveSettings()
-          }),
-      )
-
     // new Setting(containerEl)
     //   .setName("Bypass CORS restrictions")
     //   .setDesc(
@@ -182,6 +155,36 @@ export class S3agleSettingTab extends PluginSettingTab {
     //   )
   }
 
+  drawVaultSettings(containerEl: HTMLElement) {
+    new Setting(containerEl).setName("Vault").setHeading()
+
+    new Setting(containerEl)
+      .setName("Use vault for file storage")
+      .setDesc("Enable using the local vault for file storage.")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useVault)
+          .onChange(async (value) => {
+            this.plugin.settings.useVault = value
+            await this.plugin.saveSettings()
+          }),
+      )
+
+    if (this.plugin.settings.useVault) {
+      new Setting(containerEl)
+        .setName("Local upload folder")
+        .setDesc("The folder in the vault to store new files.")
+        .addText((text) =>
+          text
+            .setValue(this.plugin.settings.localUploadFolder)
+            .onChange(async (value) => {
+              this.plugin.settings.localUploadFolder = value.trim()
+              await this.plugin.saveSettings()
+            }),
+        )
+  }
+}
+  
   drawS3Settings(containerEl: HTMLElement) {
     new Setting(containerEl).setName("S3").setHeading()
 
@@ -293,6 +296,34 @@ export class S3agleSettingTab extends PluginSettingTab {
             }),
         )
     }
+
+        new Setting(containerEl)
+      .setName("Use Google docs viewer for PDF file embeddings")
+      .setDesc(
+        "Use Google Docs Viewer for PDF files stored on S3. If disabled, the PDF preview will not render, but the file will still be uploaded.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useGoogleDocsViewer)
+          .onChange(async (value) => {
+            this.plugin.settings.useGoogleDocsViewer = value
+            await this.plugin.saveSettings()
+          }),
+      )
+
+    new Setting(containerEl)
+      .setName("Use Microsoft Office viewer for .ppt file embeddings")
+      .setDesc(
+        "Use Microsoft Office Viewer for PPT files stored on S3. If disabled, the PPT preview will not render, but the file will still be uploaded.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useMicrosoftOfficeViewer)
+          .onChange(async (value) => {
+            this.plugin.settings.useMicrosoftOfficeViewer = value
+            await this.plugin.saveSettings()
+          }),
+      )
   }
 
   drawEagleSettings(containerEl: HTMLElement) {
