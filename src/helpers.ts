@@ -15,6 +15,7 @@ import { FileReference } from "./types"
  * But this uses Obsidian requestUrl instead.
  */
 
+
 export function requestTimeout(
   timeoutInMs = 0,
 ): Promise<{ response: HttpResponse }> {
