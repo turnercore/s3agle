@@ -21,3 +21,6 @@ data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+# Exclude the test files (as they will be renamed constantly)
+test_files
