@@ -7,14 +7,34 @@ import {
 import { HttpRequest, HttpResponse } from "@aws-sdk/protocol-http"
 import { App, RequestUrlParam, TFile, requestUrl } from "obsidian"
 import { FileReference } from "./types"
+import { createHash } from "crypto"
 
-/**
- * This is close to origin implementation of FetchHttpHandler
- * https://github.com/aws/aws-sdk-js-v3/blob/main/packages/fetch-http-handler/src/fetch-http-handler.ts
- * that is released under Apache 2 License.
- * But this uses Obsidian requestUrl instead.
- */
+export function hashFile(file: File, seed: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const arrayBuffer = reader.result as ArrayBuffer
+      const hash = hashArrayBuffer(arrayBuffer, seed)
+      const extension = file.name.split('.').pop() || ""
+      resolve(`${hash}.${extension}`)
+    }
+    reader.onerror = () => {
+      reject(reader.error)
+    }
+    reader.readAsArrayBuffer(file)
+  })
+}
 
+export function hashArrayBuffer(buffer: ArrayBuffer, seed: number): string {
+  const hash = createHash('sha256')
+  const seedBuffer = new ArrayBuffer(4)
+  new DataView(seedBuffer).setUint32(0, seed, true)
+
+  hash.update(Buffer.from(seedBuffer))
+  hash.update(Buffer.from(buffer))
+
+  return hash.digest('hex')
+}
 
 export function requestTimeout(
   timeoutInMs = 0,
@@ -311,22 +331,19 @@ export const getNoteContent = async (app: App): Promise<string> => {
   return await app.vault.read(noteFile)
 }
 
-// Optional Hashing functions to hide file names
-export const hashString = (str: string, hashSeed: number): string => {
-  let hash = hashSeed
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    // Multiplying by a prime number before XORing helps distribute the values more uniformly
-    hash = (hash * 33) ^ char // ^ is XOR operation
-  }
-  // Convert to a positive 32-bit integer and return as a string
-  return (hash >>> 0).toString()
-}
+export const incrementFileName = (fileName: string): string => {
+  const fileParts = fileName.split('.')
+  const extension = fileParts.pop()
+  const baseName = fileParts.join('.')
 
-export const hashNameIfNeeded = (
-  fileName: string,
-  hashFileName: boolean,
-  hashSeed: number,
-): string => {
-  return hashFileName ? hashString(fileName, hashSeed) : fileName
+  const match = baseName.match(/^(.*?)(\d*)$/)
+  if (!match) {
+    return `${baseName}(2).${extension}`
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_, name, number] = match
+  const newNumber = number ? parseInt(number) + 1 : 2
+
+  return `${name}(${newNumber}).${extension}`
 }

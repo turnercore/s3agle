@@ -1,13 +1,14 @@
-import { App, Notice, normalizePath, TFile } from "obsidian";
+import { App, Notice, TFile, normalizePath } from "obsidian";
 import { S3agleSettings } from "../settings";
+import { hashFile, hashArrayBuffer, incrementFileName, sanitizeFileName } from "../helpers";
 
-// Save the file locally in the vault
 export const saveFileToVault = async (
   file: File,
   settings: S3agleSettings,
   app: App,
 ): Promise<string> => {
-  let fileName = file.name;
+  let fileName = settings.hashFileName ? await hashFile(file, settings.hashSeed) : sanitizeFileName(file.name);
+
   const data = await file.arrayBuffer();
   const localUploadFolder = settings.localUploadFolder;
   const folderPath = normalizePath(localUploadFolder);
@@ -26,8 +27,8 @@ export const saveFileToVault = async (
     existingFile = app.vault.getAbstractFileByPath(filePath) as TFile;
     if (existingFile) {
       const existingFileData = await app.vault.readBinary(existingFile);
-      const existingFileHash = await hashFileData(new Uint8Array(existingFileData));
-      const newFileHash = await hashFileData(new Uint8Array(data));
+      const existingFileHash = hashArrayBuffer(existingFileData, settings.hashSeed);
+      const newFileHash = hashArrayBuffer(data, settings.hashSeed);
       if (existingFileHash === newFileHash) {
         new Notice(`S3agle: "${fileName}" file exists, linking to existing file`);
         return filePath; // File is the same, link to existing
@@ -50,22 +51,4 @@ export const saveFileToVault = async (
     console.error("Error saving file in vault:", error);
     return "";
   }
-};
-
-// Helper function to hash file data
-const hashFileData = async (data: Uint8Array): Promise<string> => {
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-};
-
-// Helper function to increment file name
-const incrementFileName = (fileName: string): string => {
-  const nameParts = fileName.match(/(.*?)(\d+)?(\.[^.]*$|$)/);
-  if (!nameParts) return fileName;
-  const baseName = nameParts[1];
-  const ext = nameParts[3];
-  const num = nameParts[2] ? parseInt(nameParts[2]) + 1 : 2;
-  return `${baseName}${num}${ext}`;
 };
