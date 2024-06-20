@@ -25,7 +25,7 @@ export const getEagleItemId = async (
 
     if (results.status === "success") {
       //find the item id by file name in the results
-      const item = results.data.find((item: any) => item.name === fileName)
+      const item = results.data.find((item: { name: string }) => item.name === fileName)
       const result = item ? item.id : null
       return result
     } else {
