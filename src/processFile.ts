@@ -6,10 +6,10 @@ import { uploadToEagle } from "./eagle/uploadToEagle"
 import { getBaseVaultPath } from "./helpers"
 
 // Main function to process the file
-export const processFile = async (file: File, settings: S3agleSettings, app: App, placeholder: string) => { 
+export const processFile = async (file: File, settings: S3agleSettings, app: App, placeholder: string) => {
   const editor: Editor | undefined = app.workspace.activeEditor?.editor
   if (!editor) throw new Error("No active editor found.")
-  
+
   const noteFile = app.workspace.getActiveFile()
   if (!noteFile || !noteFile.name) return
 
@@ -22,7 +22,7 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
       let s3Url = ""
       let eagleUrl = ""
       let vaultUrl = ""
-      
+
       if (settings.useS3) s3Url = await uploadToS3(file, settings)
       if (settings.useVault) vaultUrl = await saveFileToVault(file, settings, app)
       if (settings.useEagle) {

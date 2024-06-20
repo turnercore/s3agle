@@ -116,22 +116,22 @@ export class S3agleSettingTab extends PluginSettingTab {
             this.display() // Redraw to show/hide hash seed setting dynamically
           }),
       )
-    
-      if (this.plugin.settings.hashFileName) {
-        new Setting(containerEl)
-          .setName("Reset hash seed")
-          .setDesc(
-            `Current seed: ${this.plugin.settings.hashSeed}. Reset this seed to hash file names differently. For example, if you're uploading the same file multiple times and want to avoid conflicts.`,
-          )
-          .addButton((button) =>
-            button.setButtonText("Reset seed").onClick(async () => {
-              this.plugin.settings.hashSeed = randomInt(1000000)
-              await this.plugin.saveSettings()
-              new Notice("S3agle: Hash seed reset.")
-              this.display()
-            }),
-          )
-      }
+
+    if (this.plugin.settings.hashFileName) {
+      new Setting(containerEl)
+        .setName("Reset hash seed")
+        .setDesc(
+          `Current seed: ${this.plugin.settings.hashSeed}. Reset this seed to hash file names differently. For example, if you're uploading the same file multiple times and want to avoid conflicts.`,
+        )
+        .addButton((button) =>
+          button.setButtonText("Reset seed").onClick(async () => {
+            this.plugin.settings.hashSeed = randomInt(1000000)
+            await this.plugin.saveSettings()
+            new Notice("S3agle: Hash seed reset.")
+            this.display()
+          }),
+        )
+    }
 
     // new Setting(containerEl)
     //   .setName("Bypass CORS restrictions")
