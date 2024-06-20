@@ -95,6 +95,7 @@ async pasteHandler(
       const placeholder = `![Uploading ${fileName}…]`
       editor.replaceSelection(placeholder)
       try {
+        console.log("Processing file:", file.name)
         await processFile(
           file,
           this.settings,

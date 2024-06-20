@@ -1,4 +1,5 @@
 import { Folder } from "../types"
+import { EAGLE_API_CREATE_FOLDER_ENDPOINT } from "../constants"
 
   //Create a folder in Eagle
   export const createEagleFolder = async (
@@ -18,7 +19,7 @@ import { Folder } from "../types"
         parent: parentId,
       }
 
-      const response = await fetch(safeEagleApiUrl + "/api/folder/create", {
+      const response = await fetch(safeEagleApiUrl + EAGLE_API_CREATE_FOLDER_ENDPOINT, {
         method: "POST",
         body: JSON.stringify(data),
       })

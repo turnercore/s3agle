@@ -1,0 +1,26 @@
+// Eagle API Endpoints
+export const EAGLE_API_APPLICATION_INFO_ENDPOINT = "/api/application/info"
+export const EAGLE_API_CREATE_FOLDER_ENDPOINT = "/api/folder/create"
+export const EAGLE_API_RENAME_FOLDER_ENDPOINT = "/api/folder/rename"
+export const EAGLE_API_UPDATE_FOLDER_ENDPOINT = "/api/folder/update"
+export const EAGLE_API_LIST_FOLDER_ENDPOINT = "/api/folder/list"
+export const EAGLE_API_LIST_RECENT_FOLDER_ENDPOINT = "/api/folder/listRecent"
+export const EAGLE_API_ADD_FROM_URL_ENDPOINT = "/api/item/addFromURL"
+export const EAGLE_API_ADD_FROM_URLS_ENDPOINT = "/api/item/addFromURLs"
+export const EAGLE_API_ADD_FROM_PATH_ENDPOINT = "/api/item/addFromPath"
+export const EAGLE_API_ADD_FROM_PATHS_ENDPOINT = "/api/item/addFromPaths"
+export const EAGLE_API_FOLDER_LIST_ENDPOINT = "/api/folder/list"
+export const EAGLE_API_ITEM_INFO_ENDPOINT = "/api/item/info"
+export const EAGLE_API_ITEM_THUMBNAIL_ENDPOINT = "/api/item/thumbnail"
+export const EAGLE_API_ITEM_LIST_ENDPOINT = "/api/item/list"
+export const EAGLE_API_ITEM_MOVE_TO_TRASH_ENDPOINT = "/api/item/moveToTrash"
+export const EAGLE_API_ITEM_REFRESH_PALETTE_ENDPOINT = "/api/item/refreshPalette"
+export const EAGLE_API_ITEM_REFRESH_THUMBNAIL_ENDPOINT = "/api/item/refreshThumbnail"
+export const EAGLE_API_ITEM_UPDATE_ENDPOINT = "/api/item/update"
+export const EAGLE_API_LIBRARY_INFO_ENDPOINT = "/api/library/info"
+export const EAGLE_API_LIBRARY_HISTORY_ENDPOINT = "/api/library/history"
+export const EAGLE_API_LIBRARY_SWITCH_ENDPOINT = "/api/library/switch"
+export const EAGLE_API_LIBRARY_ICON_ENDPOINT = "/api/library/icon"
+
+
+

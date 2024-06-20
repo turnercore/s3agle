@@ -21,6 +21,7 @@ export interface S3agleSettings {
   s3Region: string // AWS Region where the S3 bucket is located
   bucket: string // The name of the S3 bucket to use
   s3Folder: string // Default folder path within the S3 bucket
+  eagleFolder: string // Default folder path within Eagle
   eagleApiUrl: string // URL to the Eagle API, usually localhost
   uploadOnDrag: boolean // Enable uploading files on drag-and-drop
   useEagle: boolean // Enable integration with Eagle software
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS: S3agleSettings = {
   s3Region: "",
   bucket: "",
   s3Folder: "",
+  eagleFolder: "Obsidian",
   useCustomEndpoint: false,
   s3Url: "s3.amazonaws.com",
   eagleApiUrl: "http://localhost:41595/",

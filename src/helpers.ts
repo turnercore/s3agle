@@ -5,7 +5,7 @@ import {
   FetchHttpHandlerOptions,
 } from "@aws-sdk/fetch-http-handler"
 import { HttpRequest, HttpResponse } from "@aws-sdk/protocol-http"
-import { App, RequestUrlParam, TFile, requestUrl } from "obsidian"
+import { App, FileSystemAdapter, RequestUrlParam, TFile, requestUrl } from "obsidian"
 import { FileReference } from "./types"
 import { createHash } from "crypto"
 
@@ -346,4 +346,13 @@ export const incrementFileName = (fileName: string): string => {
   const newNumber = number ? parseInt(number) + 1 : 2
 
   return `${name}(${newNumber}).${extension}`
+}
+
+export function getBaseVaultPath(app: App) {
+  const adapter = app.vault.adapter
+  if (adapter instanceof FileSystemAdapter) {
+    return adapter.getBasePath()
+  } else {
+    return ""
+  }
 }

@@ -1,5 +1,6 @@
 import { Folder } from "../types"
 import { createEagleFolder } from "./createEagleFolder"
+import { EAGLE_API_FOLDER_LIST_ENDPOINT } from "../constants"
 
   export const getEagleFolderId = async (
     folderPath: string,
@@ -19,7 +20,7 @@ import { createEagleFolder } from "./createEagleFolder"
       }
 
       const response = await fetch(
-        safeEagleApiUrl + "/api/folder/list",
+        safeEagleApiUrl + EAGLE_API_FOLDER_LIST_ENDPOINT,
         requestOptions,
       )
 
