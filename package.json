@@ -34,7 +34,7 @@
     "uuid": "^8.3.2"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.317.0",
+    "@aws-sdk/client-s3": "^3.631.0",
     "@aws-sdk/fetch-http-handler": "^3.310.0",
     "@aws-sdk/protocol-http": "^3.310.0",
     "@aws-sdk/querystring-builder": "^3.310.0",
