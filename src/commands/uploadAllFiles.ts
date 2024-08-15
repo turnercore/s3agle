@@ -3,105 +3,64 @@ import { extractLocalFileLinks, getNoteContent, getObsidianMimeType, hashFile, s
 import { processFile } from "../processFile";
 import { S3agleSettings } from "../settings";
 
-export const uploadAllFilesCommand = (app: App, settings: S3agleSettings): Command => {
-  return {
-    id: "upload-all-files",
-    name: "Upload ALL files in document to S3/Eagle",
-    callback: () => uploadAllFiles(app, settings),
-  }
-}
+export const uploadAllFilesCommand = (app: App, settings: S3agleSettings): Command => ({
+  id: "upload-all-files",
+  name: "Upload ALL files in document to S3/Eagle",
+  callback: () => uploadAllFiles(app, settings),
+});
 
-// Upload all Files to S3/Eagle
 const uploadAllFiles = async (app: App, settings: S3agleSettings) => {
-  // Try to find all the files and create a list of files to upload
-  const uploads = []
-  const uploadsLocalFallback = []
-  const localUpload = settings.localUpload
-  const editor = app.workspace.activeEditor?.editor
-  if (!editor) throw new Error("No active editor found.")
+  const uploads: Promise<void>[] = [];
+  const uploadsLocalFallback: Promise<void>[] = [];
+  const editor = app.workspace.activeEditor?.editor;
+
+  if (!editor) throw new Error("No active editor found.");
 
   try {
-    // Get the note content
-    const noteContent = await getNoteContent(app)
-    const fileReferences = await extractLocalFileLinks(noteContent, app)
+    const noteContent = await getNoteContent(app);
+    const fileReferences = await extractLocalFileLinks(noteContent, app);
 
-    if (!fileReferences) throw new Error("No file references found.")
+    if (!fileReferences.length) throw new Error("No file references found.");
 
     for (const fileReference of fileReferences) {
-      const filePath = fileReference.path
-      const placeholder = fileReference.reference
+      const filePath = fileReference.path;
+      const placeholder = fileReference.reference;
 
-      const file = app.vault.getAbstractFileByPath(filePath)
+      const file = app.vault.getAbstractFileByPath(filePath);
       if (file instanceof TFile) {
-        const blob = await app.vault.readBinary(file)
+        const blob = await app.vault.readBinary(file);
         const fileToUpload = new File(
           [blob],
           settings.hashFileName ? await hashFile(new File([blob], file.name), settings.hashSeed) : sanitizeFileName(file.name),
-          {
-            type: getObsidianMimeType(file.extension),
-          },
-        )
+          { type: getObsidianMimeType(file.extension) }
+        );
 
         if (settings.useS3 || settings.useEagle) {
-          uploads.push(
-            processFile(
-              fileToUpload,
-              settings,
-              app,
-              placeholder,
-            ),
-          )
-        } else {
-          // If neither S3 nor Eagle is enabled, fallback to local upload
-          uploads.push(
-            processFile(
-              fileToUpload,
-              settings,
-              app,
-              placeholder,
-            ),
-          )
-        }
-
-        if (!localUpload) {
-          uploadsLocalFallback.push(
-            processFile(
-              fileToUpload,
-              settings,
-              app,
-              placeholder,
-            ),
-          )
+          uploads.push(processFile(fileToUpload, settings, app, placeholder));
+        } else if (!settings.localUpload) {
+          uploadsLocalFallback.push(processFile(fileToUpload, settings, app, placeholder));
         }
       }
     }
   } catch (error) {
-    console.error("Error finding local files:", error)
-    new Notice(`S3agle: ${error.message}`)
-    return
+    console.error("Error finding local files:", error);
+    new Notice(`S3agle: ${error.message}`);
+    return;
   }
 
-  // Try to upload all the files at once
   try {
-    await Promise.all(uploads).then(() => {
-      new Notice("S3agle: All files processed and uploaded to S3 and/or Eagle.")
-    })
+    await Promise.all(uploads);
+    new Notice("S3agle: All files processed and uploaded to S3 and/or Eagle.");
   } catch (error) {
-    console.error("Error uploading all files:", error)
-    // Try to upload all the files to local storage instead if S3 is on and fails.
-    if (!localUpload) {
+    console.error("Error uploading all files:", error);
+    if (!settings.localUpload) {
       try {
-        await Promise.all(uploadsLocalFallback).then(() => {
-          new Notice(
-            "S3agle: Files failed to upload to S3/Eagle.\n All files processed and uploaded to local storage.",
-          )
-        })
-      } catch (error) {
-        console.error("Error uploading all files:", error)
-        new Notice(
-          "S3agle: Failed to upload files. Check the console for details.",
-        )
+        await Promise.all(uploadsLocalFallback);
+        new Notice("S3agle: Files failed to upload to S3/Eagle. All files processed and uploaded to local storage.");
+      } catch (localError) {
+        console.error("Error uploading all files locally:", localError);
+        new Notice("S3agle: Failed to upload files. Check the console for details.");
       }
     }
   }
-}
+};

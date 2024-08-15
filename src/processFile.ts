@@ -3,7 +3,7 @@ import { S3agleSettings } from "./settings"
 import { saveFileToVault } from "./vault/saveFileToVault"
 import { uploadToS3 } from "./s3/uploadToS3"
 import { uploadToEagle } from "./eagle/uploadToEagle"
-import { getBaseVaultPath } from "./helpers"
+import { getDynamicFolderPath } from "./helpers"
 
 // Main function to process the file
 export const processFile = async (file: File, settings: S3agleSettings, app: App, placeholder: string) => {
@@ -23,26 +23,21 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
       let eagleUrl = ""
       let vaultUrl = ""
 
-      if (settings.useS3) s3Url = await uploadToS3(file, settings)
-      if (settings.useVault) vaultUrl = await saveFileToVault(file, settings, app)
+      if (settings.useS3) {
+        const folderPath = getDynamicFolderPath(settings.s3Folder || "")
+        s3Url = await uploadToS3(file, { ...settings, s3Folder: folderPath })
+      }
+      if (settings.useVault) {
+        vaultUrl = await saveFileToVault(file, settings, app)
+      }
       if (settings.useEagle) {
-        if (s3Url) {
-          eagleUrl = await uploadToEagle(s3Url, file.name, settings);
-        } else {
-          // Save file to temp vault path if not saved to vault already
-          if (!vaultUrl) { vaultUrl = await saveFileToVault(file, settings, app, true) }
-          // Get absolute Path of the file
-          let baseFilePath = getBaseVaultPath(app)
-          // Make sure the baseFilePath + combines correctly
-          if (!baseFilePath.endsWith("/")) baseFilePath += "/"
-          // Combine the baseFilePath with the vaultUrl
-          vaultUrl = vaultUrl.replace(baseFilePath, "")
-          if (vaultUrl.startsWith("/")) vaultUrl = vaultUrl.slice(1)
-          const absoluteFilePath = baseFilePath + vaultUrl
-
-          console.log("Uploading to Eagle")
-          eagleUrl = await uploadToEagle(absoluteFilePath, file.name, settings);
-        }
+        eagleUrl = s3Url
+          ? await uploadToEagle(s3Url, file.name, settings)
+          : await uploadToEagle(
+            vaultUrl || (await saveFileToVault(file, settings, app, true)),
+            file.name,
+            settings
+          )
       }
 
       const filePreview = generateFilePreview(file, settings, s3Url, eagleUrl, vaultUrl)
@@ -56,12 +51,13 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
 }
 
 const generateFilePreview = (file: File, settings: S3agleSettings, s3Url: string, eagleUrl: string, vaultUrl: string): string => {
+  const localBase = settings.localUpload ? "file://" + settings.localUploadFolder + "/" : ""
   if (settings.useS3 && s3Url) {
-    return wrapFileDependingOnType(s3Url, detectFileType(file), settings.localUploadFolder, settings, file.name)
+    return wrapFileDependingOnType(s3Url, detectFileType(file), localBase, settings, file.name)
   } else if (settings.useVault && vaultUrl) {
-    return wrapFileDependingOnType(vaultUrl, detectFileType(file), settings.localUploadFolder, settings, file.name)
+    return wrapFileDependingOnType(vaultUrl, detectFileType(file), localBase, settings, file.name)
   } else if (settings.useEagle && eagleUrl) {
-    return wrapFileDependingOnType(eagleUrl, detectFileType(file), settings.localUploadFolder, settings, file.name)
+    return wrapFileDependingOnType(eagleUrl, detectFileType(file), localBase, settings, file.name)
   } else {
     return "ERROR WRAPPING FILE FOR FILE PREVIEW"
   }

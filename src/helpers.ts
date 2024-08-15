@@ -78,9 +78,8 @@ export class ObsHttpHandler extends FetchHttpHandler {
     }
 
     const { port, method } = request
-    const url = `${request.protocol}//${request.hostname}${
-      port ? `:${port}` : ""
-    }${path}`
+    const url = `${request.protocol}//${request.hostname}${port ? `:${port}` : ""
+      }${path}`
     const body =
       method === "GET" || method === "HEAD" ? undefined : request.body
 
@@ -355,4 +354,16 @@ export function getBaseVaultPath(app: App) {
   } else {
     return ""
   }
+}
+
+export const getDynamicFolderPath = (folderPath: string): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0") // JavaScript months are 0-based
+  const day = String(now.getDate()).padStart(2, "0")
+
+  return folderPath
+    .replace("${year}", year.toString())
+    .replace("${month}", month)
+    .replace("${day}", day)
 }

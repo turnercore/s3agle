@@ -117,70 +117,58 @@ export default class S3aglePlugin extends Plugin {
 
 
   async onload() {
-    await this.loadSettings()
+    await this.loadSettings();
+    this.addSettingTab(new S3agleSettingTab(this.app, this));
 
-    // This adds a settings tab so the user can configure various aspects of the plugin
-    this.addSettingTab(new S3agleSettingTab(this.app, this))
+    if (this.settings.useS3) {
+      const apiEndpoint = this.settings.s3Url.startsWith("http")
+        ? this.settings.s3Url
+        : `https://${this.settings.s3Url}`;
 
-    const apiEndpoint = this.settings.useCustomEndpoint
-      ? this.settings.s3Url
-      : `https://s3.${this.settings.s3Region}.amazonaws.com/`
-
-    // Set the content URL based on the settings and the API endpoint
-    this.settings.contentUrl = this.settings.forcePathStyle
-      ? apiEndpoint + this.settings.bucket + "/"
-      : apiEndpoint.replace("://", `://${this.settings.bucket}.`)
-
-    if (this.settings.useCustomContentUrl) {
-      this.settings.contentUrl = this.settings.customContentUrl
-      // Check to see if the custom content URL ends with a slash
-      if (!this.settings.contentUrl.endsWith("/")) {
-        this.settings.contentUrl += "/"
+      // Properly construct the content URL
+      if (this.settings.useCustomContentUrl) {
+        this.settings.contentUrl = this.settings.customContentUrl;
+      } else {
+        this.settings.contentUrl = this.settings.forcePathStyle
+          ? `${apiEndpoint}/${this.settings.bucket}`
+          : `${apiEndpoint}/${this.settings.bucket}`;
       }
-      // Add the bucket name to the custom content URL if it's not already there
-      if (!this.settings.contentUrl.includes(this.settings.bucket)) {
-        this.settings.contentUrl += this.settings.bucket + "/"
-      }
-    }
 
-    if (this.settings.bypassCors) {
+      // Ensure no trailing slashes for contentUrl
+      if (this.settings.contentUrl.endsWith("/")) {
+        this.settings.contentUrl = this.settings.contentUrl.slice(0, -1);
+      }
+
+      if (!this.settings.s3Url) {
+        throw new Error("S3 URL is missing in the settings.");
+      }
+
       this.s3 = new S3Client({
-        region: this.settings.s3Region,
+        region: this.settings.s3Region || undefined,  // Optional if the custom endpoint doesn't need it
         credentials: {
           accessKeyId: this.settings.accessKey,
           secretAccessKey: this.settings.secretKey,
         },
-        endpoint: apiEndpoint,
+        endpoint: apiEndpoint,  // Always use the s3Url from settings
         forcePathStyle: this.settings.forcePathStyle,
         requestHandler: new ObsHttpHandler(),
-      })
-    } else {
-      this.s3 = new S3Client({
-        region: this.settings.s3Region,
-        credentials: {
-          accessKeyId: this.settings.accessKey,
-          secretAccessKey: this.settings.secretKey,
-        },
-        endpoint: apiEndpoint,
-        forcePathStyle: this.settings.forcePathStyle,
-        requestHandler: new ObsHttpHandler(),
-      })
+      });
     }
 
-    this.pasteFunction = this.pasteHandler.bind(this)
+    this.pasteFunction = this.pasteHandler.bind(this);
+    this.registerEvent(this.app.workspace.on("editor-paste", this.pasteFunction));
+    this.registerEvent(this.app.workspace.on("editor-drop", this.pasteFunction));
 
-    this.registerEvent(
-      this.app.workspace.on("editor-paste", this.pasteFunction),
-    )
-    this.registerEvent(this.app.workspace.on("editor-drop", this.pasteFunction))
-
-
-    // If s3 or eagle are enabled add the upload and download commands
     if (this.settings.useS3 || this.settings.useEagle) {
-      this.addCommand(uploadAllFilesCommand(this.app, this.settings))
-      this.addCommand(downloadAllFilesCommand(this.app, this.settings))
+      this.addCommand(uploadAllFilesCommand(this.app, this.settings));
+      this.addCommand(downloadAllFilesCommand(this.app, this.settings));
     }
   }
+
+
+
+
+
 
   //Fetch the data from the plugin settings
   async loadSettings() {
