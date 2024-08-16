@@ -9,7 +9,6 @@ import {
 } from "@aws-sdk/client-s3"
 import type { pasteFunction } from "./types"
 import { type S3agleSettings, S3agleSettingTab, DEFAULT_SETTINGS } from "./settings"
-import { ObsHttpHandler } from "./helpers"
 import { downloadAllFilesCommand } from "./commands/downloadAllFiles"
 import { uploadAllFilesCommand } from "./commands/uploadAllFiles"
 import { processFile } from "./processFile"
@@ -143,7 +142,6 @@ export default class S3aglePlugin extends Plugin {
         },
         endpoint: apiEndpoint,  // Always use the s3Url from settings
         forcePathStyle: this.settings.forcePathStyle,
-        requestHandler: new ObsHttpHandler(),
       });
     }
 
