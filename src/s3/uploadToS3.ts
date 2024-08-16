@@ -1,6 +1,6 @@
 import { S3agleSettings } from "../settings";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getDynamicFolderPath } from "../helpers";
+import { getDynamicFolderPath, hashFile } from "../helpers";
 
 export const uploadToS3 = async (file: File, settings: S3agleSettings): Promise<string> => {
   if (!settings.s3Url) {
@@ -17,9 +17,9 @@ export const uploadToS3 = async (file: File, settings: S3agleSettings): Promise<
       ? settings.s3Url
       : `https://${settings.s3Url}`,  // Always use the s3Url from settings
   })
-
+  const fileName = settings.hashFileName ? await hashFile(file, settings.hashSeed) : file.name
   const folderPath = getDynamicFolderPath(settings.s3Folder || "")
-  const key = `${folderPath}/${file.name}`
+  const key = `${folderPath}/${fileName}`
   const buffer = await file.arrayBuffer()
 
   try {
@@ -34,7 +34,7 @@ export const uploadToS3 = async (file: File, settings: S3agleSettings): Promise<
     const filePrefix = settings.contentUrl.endsWith("/") ? settings.contentUrl : `${settings.contentUrl}/`
     const fileBucket = settings.bucket.endsWith("/") ? settings.bucket : `${settings.bucket}/`
     const folderPath = settings.s3Folder ? `${settings.s3Folder}/` : ""
-    const fileUrl = `${filePrefix}${fileBucket}${folderPath}${file.name}`
+    const fileUrl = `${filePrefix}${fileBucket}${folderPath}${fileName}`
     const escapedFileUrl = escapeFileUrl(fileUrl)
 
     return escapedFileUrl;  // Return the correct file URL for preview
