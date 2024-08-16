@@ -28,7 +28,6 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
         s3Url = await uploadToS3(file, { ...settings, s3Folder: folderPath })
       }
       if (settings.useVault) {
-        console.log("Uploading to Vault")
         vaultUrl = await saveFileToVault(file, settings, app)
       }
       if (settings.useEagle) {
@@ -52,9 +51,6 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
           new Notice("S3agle: Eagle needs either local or S3 to be enabled to upload.")
         }
       }
-      console.log("S3 URL:", s3Url)
-      console.log("Eagle URL:", eagleUrl)
-      console.log("Vault URL:", vaultUrl)
       const filePreview = generateFilePreview(file, settings, s3Url, eagleUrl, vaultUrl)
       replacePlaceholder(editor, placeholder, filePreview)
     }

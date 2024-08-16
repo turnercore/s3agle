@@ -6,7 +6,7 @@ const directory = './test_files';
 
 fs.readdir(directory, (err, files) => {
   if (err) {
-    return console.log('Unable to scan directory: ' + err);
+    return console.error('Unable to scan directory: ' + err);
   }
 
   files.forEach((file) => {
@@ -18,10 +18,10 @@ fs.readdir(directory, (err, files) => {
 
     fs.rename(oldFilePath, newFilePath, (err) => {
       if (err) {
-        console.log('Error renaming file: ' + err);
+        console.error('Error renaming file: ' + err);
       }
     });
   });
 
-  console.log('Files have been renamed.');
+  console.error('Files have been renamed.');
 });

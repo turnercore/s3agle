@@ -48,22 +48,19 @@ export default class S3aglePlugin extends Plugin {
     ev: ClipboardEvent | DragEvent,
     editor: Editor,
   ): Promise<void> {
-    console.log("pasteHandler triggered")
     if (ev.defaultPrevented) {
-      console.log("Event default prevented")
       return
     }
 
     // Check if any storage option is enabled
     if (!this.settings.useS3 && !this.settings.useEagle && !this.settings.useVault) {
-      console.log("All storage options are disabled, ignoring event")
       return
     }
 
     // Get the current note
     const noteFile = this.app.workspace.getActiveFile()
     if (!noteFile || !noteFile.name) {
-      console.log("No active note file")
+      ("No active note file")
       return
     }
 
@@ -74,28 +71,23 @@ export default class S3aglePlugin extends Plugin {
     switch (ev.type) {
       case "paste":
         files = Array.from((ev as ClipboardEvent).clipboardData?.files || [])
-        console.log("Files from paste:", files)
         break
       case "drop":
         if (!this.settings.uploadOnDrag && !(fm && fm.S3eagleUploadOnDrag)) {
-          console.log("Upload on drag is disabled")
           return
         }
         files = Array.from((ev as DragEvent).dataTransfer?.files || [])
-        console.log("Files from drop:", files)
         break
     }
 
     if (files.length > 0) {
       ev.preventDefault()
-      console.log("Processing files:", files)
 
       const uploads = files.map(async (file) => {
         const fileName = file.name
         const placeholder = `![Uploading ${fileName}…]`
         editor.replaceSelection(placeholder)
         try {
-          console.log("Processing file:", file.name)
           await processFile(
             file,
             this.settings,
