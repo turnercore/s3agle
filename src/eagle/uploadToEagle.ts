@@ -4,7 +4,7 @@ import { HttpRequest } from "@aws-sdk/protocol-http"
 import { URL } from 'url'
 import { EAGLE_API_ADD_FROM_URL_ENDPOINT, EAGLE_API_ADD_FROM_PATH_ENDPOINT } from "../constants"
 import { getEagleFolderId } from "./getEagleFolderId"
-import { getEagleItemId } from "./getEagleItemId"
+// import { getEagleItemId } from "./getEagleItemId"
 
 // Upload file to Eagle using a URL
 
@@ -12,8 +12,8 @@ export const uploadToEagle = async (fileUrl: string, fileName: string, settings:
   const eagleApiUrl = settings.eagleApiUrl.endsWith("/")
     ? settings.eagleApiUrl.slice(0, -1)
     : settings.eagleApiUrl
-  
-  const isWebUrl = fileUrl.startsWith("http://") || fileUrl.startsWith("https://")
+
+  const isWebUrl = fileUrl.trim().startsWith("http://") || fileUrl.trim().startsWith("https://")
   const eagleApiEndpoint = isWebUrl ? EAGLE_API_ADD_FROM_URL_ENDPOINT : EAGLE_API_ADD_FROM_PATH_ENDPOINT
 
   const folderId = await getEagleFolderId(settings.eagleFolder, true, settings.eagleApiUrl) || ""
@@ -22,12 +22,16 @@ export const uploadToEagle = async (fileUrl: string, fileName: string, settings:
     url: fileUrl,
     name: fileName,
     tags: ["Obsidian"],
-    folderId
+    folderId,
+    website: fileUrl,
+    annotation: "Uploaded from Obsidian."
   } : {
     path: fileUrl,
     name: fileName,
     tags: ["Obsidian"],
     folderId,
+    annotation: "Uploaded from Obsidian.",
+    website: fileUrl,
   }
 
   const obsHttpHandler = new ObsHttpHandler()
@@ -50,21 +54,21 @@ export const uploadToEagle = async (fileUrl: string, fileName: string, settings:
     body: JSON.stringify(data),
   })
 
-    const response = await obsHttpHandler.handle(httpRequest)
-    if (response.response.statusCode !== 200) {
-      // Output the response body
-      const responseBody = await response.response.body.getReader().read().then(({ value }: { value: Uint8Array }) => new TextDecoder().decode(value))
-      console.error(`Failed to upload file to Eagle: ${responseBody}`)
-      throw new Error("Failed to upload file to Eagle.")
-    }
-    // Parse the response body to get the Eagle item ID
-    const responseData = await response.response.body.getReader().read().then(({ value }: { value: Uint8Array }) => JSON.parse(new TextDecoder().decode(value)))
-    // Get the item ID
-    console.log("Eagle response data:", responseData.data)
-    const id = (!responseData.data || responseData.data ==="undefined") ? await getEagleItemId(fileName, folderId, eagleApiUrl) : responseData.data
-    console.log("Eagle item ID:", id)
-    if (!id) throw new Error("Failed to get Eagle item ID.")
+  const response = await obsHttpHandler.handle(httpRequest)
+  if (response.response.statusCode !== 200) {
+    // Output the response body
+    const responseBody = await response.response.body.getReader().read().then(({ value }: { value: Uint8Array }) => new TextDecoder().decode(value))
+    console.error(`Failed to upload file to Eagle: ${responseBody}`)
+    throw new Error("Failed to upload file to Eagle.")
+  }
+  // Parse the response body to get the Eagle item ID
+  // const responseData = await response.response.body.getReader().read().then(({ value }: { value: Uint8Array }) => JSON.parse(new TextDecoder().decode(value)))
+  // Get the item ID
+  // const id = (!responseData.data || responseData.data === "undefined") ? await getEagleItemId(fileName, folderId, eagleApiUrl) : responseData.data
+  // if (!id) throw new Error("Failed to get Eagle item ID.")
 
-    return `eagle://item/${id}` // Return the Eagle item ID URI
+  // Right now we can't display previews with Eagle, local or S3 needs to be enabled to get previews, so just pass that back
+
+  return fileUrl
 }
 

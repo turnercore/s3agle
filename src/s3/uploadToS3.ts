@@ -45,8 +45,5 @@ export const uploadToS3 = async (file: File, settings: S3agleSettings): Promise<
 
 const escapeFileUrl = (fileUrl: string): string => {
   //turn spaces into %20 and other special characters into their escaped values, get rid of double slashes
-  let escapedFileUrl = fileUrl.replace(/ /g, "%20")
-  escapedFileUrl = escapedFileUrl.replace(/\\/g, "/")
-  escapedFileUrl = escapedFileUrl.replace(/\/\//g, "/")
-  return escapedFileUrl
+  return fileUrl.replace(/ /g, "%20")
 }

@@ -3,7 +3,7 @@ import { S3agleSettings } from "./settings"
 import { saveFileToVault } from "./vault/saveFileToVault"
 import { uploadToS3 } from "./s3/uploadToS3"
 import { uploadToEagle } from "./eagle/uploadToEagle"
-import { getDynamicFolderPath } from "./helpers"
+import { getBaseVaultPath, getDynamicFolderPath } from "./helpers"
 
 // Main function to process the file
 export const processFile = async (file: File, settings: S3agleSettings, app: App, placeholder: string) => {
@@ -20,7 +20,7 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
       await saveFileToVault(file, settings, app)
     } else {
       let s3Url = ""
-      let eagleUrl = ""
+      let eagleUrl = ""  // eagleUrl is defined here
       let vaultUrl = ""
 
       if (settings.useS3) {
@@ -28,18 +28,33 @@ export const processFile = async (file: File, settings: S3agleSettings, app: App
         s3Url = await uploadToS3(file, { ...settings, s3Folder: folderPath })
       }
       if (settings.useVault) {
+        console.log("Uploading to Vault")
         vaultUrl = await saveFileToVault(file, settings, app)
       }
       if (settings.useEagle) {
-        eagleUrl = s3Url
-          ? await uploadToEagle(s3Url, file.name, settings)
-          : await uploadToEagle(
-            vaultUrl || (await saveFileToVault(file, settings, app, true)),
-            file.name,
-            settings
-          )
+        // If the file was saved to S3, use the S3 URL to upload to Eagle
+        if (vaultUrl && settings.useVault && !settings.useS3) {
+          // Save file to temp vault path if not saved to vault already
+          if (!vaultUrl) { vaultUrl = await saveFileToVault(file, settings, app, true) }
+          // Get absolute Path of the file
+          let baseFilePath = getBaseVaultPath(app);
+          // Make sure the baseFilePath + combines correctly
+          if (!baseFilePath.endsWith("/")) baseFilePath += "/";
+          // Combine the baseFilePath with the vaultUrl
+          vaultUrl = vaultUrl.replace(baseFilePath, "");
+          if (vaultUrl.startsWith("/")) vaultUrl = vaultUrl.slice(1);
+          const absoluteFilePath = baseFilePath + vaultUrl;
+          eagleUrl = await uploadToEagle(absoluteFilePath, file.name, settings);
+        } else if (s3Url && settings.useS3) {
+          eagleUrl = await uploadToEagle(s3Url, file.name, settings);
+        } else {
+          // Eagle needs either local or S3 to be enabled to upload
+          new Notice("S3agle: Eagle needs either local or S3 to be enabled to upload.")
+        }
       }
-
+      console.log("S3 URL:", s3Url)
+      console.log("Eagle URL:", eagleUrl)
+      console.log("Vault URL:", vaultUrl)
       const filePreview = generateFilePreview(file, settings, s3Url, eagleUrl, vaultUrl)
       replacePlaceholder(editor, placeholder, filePreview)
     }
