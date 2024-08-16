@@ -300,6 +300,7 @@ export class S3agleSettingTab extends PluginSettingTab {
             .setValue(this.plugin.settings.customContentUrl)
             .onChange(async (value) => {
               this.plugin.settings.customContentUrl = value.trim()
+              updateContentUrl(this.plugin)
               await this.plugin.saveSettings()
             }),
         )
@@ -444,3 +445,16 @@ export class FileActionSuggestModal extends SuggestModal<FileReference> {
   }
 }
 
+const updateContentUrl = (plugin: S3aglePlugin): void => {
+  if (!plugin.settings.useCustomContentUrl) return
+
+  // Properly construct the content URL
+  plugin.settings.contentUrl = plugin.settings.customContentUrl
+  // Ensure no trailing slashes for contentUrl
+  if (plugin.settings.contentUrl.endsWith("/")) {
+    plugin.settings.contentUrl = plugin.settings.contentUrl.slice(0, -1)
+  }
+  // Ensure no double slashes except for the protocol
+  plugin.settings.contentUrl = plugin.settings.contentUrl.replace(/([^:]\/)\/+/g, "$1")
+  plugin.saveSettings()
+}

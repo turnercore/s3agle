@@ -116,20 +116,6 @@ export default class S3aglePlugin extends Plugin {
         ? this.settings.s3Url
         : `https://${this.settings.s3Url}`;
 
-      // Properly construct the content URL
-      if (this.settings.useCustomContentUrl) {
-        this.settings.contentUrl = this.settings.customContentUrl;
-      } else {
-        this.settings.contentUrl = this.settings.forcePathStyle
-          ? `${apiEndpoint}/${this.settings.bucket}`
-          : `${apiEndpoint}/${this.settings.bucket}`;
-      }
-
-      // Ensure no trailing slashes for contentUrl
-      if (this.settings.contentUrl.endsWith("/")) {
-        this.settings.contentUrl = this.settings.contentUrl.slice(0, -1);
-      }
-
       if (!this.settings.s3Url) {
         throw new Error("S3 URL is missing in the settings.");
       }
