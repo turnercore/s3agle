@@ -26,6 +26,7 @@ export interface S3agleSettings {
   uploadOnDrag: boolean // Enable uploading files on drag-and-drop
   useEagle: boolean // Enable integration with Eagle software
   useS3: boolean // Enable integration with  S3
+  useBucketSubdomain: boolean // Use bucket subdomain
   useVault: boolean // Use the vault for file storage
   bypassCors: boolean // Bypass CORS restrictions
   forcePathStyle: boolean // Force path style URLs
@@ -56,6 +57,7 @@ export const DEFAULT_SETTINGS: S3agleSettings = {
   eagleFolder: "Obsidian",
   useCustomEndpoint: false,
   s3Url: "s3.amazonaws.com",
+  useBucketSubdomain: false,
   eagleApiUrl: "http://localhost:41595/",
   uploadOnDrag: true,
   useEagle: true,
@@ -271,9 +273,24 @@ export class S3agleSettingTab extends PluginSettingTab {
       .setDesc("Enter the S3 endpoint URL. Will default to Amazon's S3.")
       .addText((text) =>
         text.setValue(this.plugin.settings.s3Url).onChange(async (value) => {
-          this.plugin.settings.s3Url = value.trim()
+          this.plugin.settings.s3Url = value ? value.trim() : "s3.amazonaws.com"
           await this.plugin.saveSettings()
         }),
+      )
+
+    //Toggle for using bucket subdomain
+    new Setting(containerEl)
+      .setName("Use bucket subdomain")
+      .setDesc(
+        "Changes your content url to use https://bucket.url/folder/file instead of https://url/bucket/folder/file",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useBucketSubdomain)
+          .onChange(async (value) => {
+            this.plugin.settings.useBucketSubdomain = value
+            await this.plugin.saveSettings()
+          }),
       )
 
     new Setting(containerEl)
@@ -299,8 +316,11 @@ export class S3agleSettingTab extends PluginSettingTab {
           text
             .setValue(this.plugin.settings.customContentUrl)
             .onChange(async (value) => {
-              this.plugin.settings.customContentUrl = value.trim()
+              this.plugin.settings.customContentUrl = value ? value.trim() : this.plugin.settings.s3Url
               updateContentUrl(this.plugin)
+              if (this.plugin.settings.contentUrl === "" || this.plugin.settings.contentUrl === this.plugin.settings.s3Url) {
+                this.plugin.settings.useCustomContentUrl = false
+              }
               await this.plugin.saveSettings()
             }),
         )
