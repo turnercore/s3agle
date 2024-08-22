@@ -100,9 +100,7 @@ export default class S3aglePlugin extends Plugin {
         }
       })
 
-      await Promise.all(uploads).then(() => {
-        new Notice("S3agle: All files processed.")
-      })
+      await Promise.all(uploads)
     }
   }
 
