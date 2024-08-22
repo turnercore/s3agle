@@ -1,6 +1,6 @@
 {
   "name": "s3agle",
-  "version": "0.4.7",
+  "version": "0.5.0",
   "description": "Attachment file management for Obsidian.md using S3 and Eagle.",
   "main": "main.js",
   "scripts": {
