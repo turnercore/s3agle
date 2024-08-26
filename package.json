@@ -8,8 +8,7 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "version": "node version-bump.mjs",
     "rename": "node rename.mjs",
-    "release": "npm run release:tag --",
-    "release:tag": "git tag -a $npm_config_version -m 'Release $npm_config_version' && git push origin $npm_config_version"
+    "release": "node release.mjs"
   },
   "keywords": [
     "Eagle",
