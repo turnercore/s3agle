@@ -43,7 +43,8 @@ try {
   execSync(`git add manifest.json versions.json`)
   execSync(`git commit -m "Bump version to ${version}"`)
 
-  // Create a tag and push it
+  // Push the changes and the tag
+  execSync(`git push origin main`)
   execSync(`git tag -a ${version} -m 'Release ${version}'`)
   execSync(`git push origin ${version}`)
 
