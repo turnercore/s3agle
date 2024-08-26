@@ -23,13 +23,18 @@ jobs:
         uses: actions/checkout@v4.1.4
       - name: Setup Node.js environment
         uses: actions/setup-node@v4.0.2
+      - name: Extract Version from Tag
+        id: extract_version
+        run: echo "VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')" >> $GITHUB_ENV
+      - name: Display Version (for debugging, optional)
+        run: echo "Version is ${{ env.VERSION }}"
       - name: Bump version and commit
         run: |
-          npm version ${{ env.TAG_NAME }} --no-git-tag-version
+          npm version ${{ env.VERSION }} --no-git-tag-version
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
           git add manifest.json versions.json
-          git commit -m "Bump version to ${{ env.TAG_NAME }}"
+          git commit -m "Bump version to ${{ env.VERSION }}"
       - name: Build
         run: |
           npm install
