@@ -1,7 +1,7 @@
 {
 	"id": "s3agle",
 	"name": "S3agle",
-	"version": "0.5.3",
+	"version": "0.5.8",
 	"minAppVersion": "1.6.0",
 	"description": "Use S3 providers and/or Eagle to manage vault attachments locally and remotely.",
 	"author": "Turner Monroe (turnercore)",
