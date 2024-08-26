@@ -8,8 +8,8 @@ This command updates the version in package.json, runs the version script, and c
 
 3. After running the version bump, push the changes to your repository: `git push origin main`
 
-4. Create the Tag:
-   `git tag -a [new_version] -m "Release version [new_version]"`
+`4. Create the Tag:
+   `git tag -a [new_version] -m "Release version [new_version]"``
 
 5. Push the Tag:
    `git push origin [new_version]`
