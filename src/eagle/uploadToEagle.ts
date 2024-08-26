@@ -4,10 +4,8 @@ import { HttpRequest } from "@aws-sdk/protocol-http"
 import { URL } from 'url'
 import { EAGLE_API_ADD_FROM_URL_ENDPOINT, EAGLE_API_ADD_FROM_PATH_ENDPOINT } from "../constants"
 import { getEagleFolderId } from "./getEagleFolderId"
-// import { getEagleItemId } from "./getEagleItemId"
 
 // Upload file to Eagle using a URL
-
 export const uploadToEagle = async (fileUrl: string, fileName: string, settings: S3agleSettings): Promise<string> => {
   const eagleApiUrl = settings.eagleApiUrl.endsWith("/")
     ? settings.eagleApiUrl.slice(0, -1)

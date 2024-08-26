@@ -384,6 +384,19 @@ export class S3agleSettingTab extends PluginSettingTab {
             }),
         )
     }
+
+    // Change Eagle Folder for new files
+    new Setting(containerEl)
+      .setName("Eagle Folder")
+      .setDesc("The default folder path within Eagle for new files. (Optional)")
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.eagleFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.eagleFolder = value.trim()
+            await this.plugin.saveSettings()
+          }),
+      )
   }
 }
 
